@@ -57,6 +57,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Custom routes
 RUN mv ./.next/routes-manifest.json ./.next/routes-manifest-orig.json
+COPY run.sh /run.sh
+RUN chmod +x /run.sh
 
 USER nextjs
 
@@ -65,4 +67,4 @@ EXPOSE 3000
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-CMD ["pnpm", "start-docker"]
+CMD ["/run.sh"]
