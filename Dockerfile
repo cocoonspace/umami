@@ -57,6 +57,9 @@ COPY --from=builder /app/generated ./generated
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+COPY run.sh /run.sh
+RUN chmod +x /run.sh
+
 USER nextjs
 
 EXPOSE 3000
@@ -64,4 +67,4 @@ EXPOSE 3000
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-CMD ["pnpm", "start-docker"]
+CMD ["/run.sh"]
