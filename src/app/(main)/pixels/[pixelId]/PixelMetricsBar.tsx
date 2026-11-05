@@ -1,9 +1,9 @@
+import { LoadingPanel } from '@/components/common/LoadingPanel';
 import { useDateRange, useMessages } from '@/components/hooks';
+import { useWebsiteStatsQuery } from '@/components/hooks/queries/useWebsiteStatsQuery';
 import { MetricCard } from '@/components/metrics/MetricCard';
 import { MetricsBar } from '@/components/metrics/MetricsBar';
 import { formatLongNumber } from '@/lib/format';
-import { useWebsiteStatsQuery } from '@/components/hooks/queries/useWebsiteStatsQuery';
-import { LoadingPanel } from '@/components/common/LoadingPanel';
 
 export function PixelMetricsBar({
   pixelId,
@@ -13,8 +13,8 @@ export function PixelMetricsBar({
   compareMode?: boolean;
 }) {
   const { isAllTime } = useDateRange();
-  const { formatMessage, labels } = useMessages();
-  const { data, isLoading, isFetching, error } = useWebsiteStatsQuery(pixelId);
+  const { t, labels } = useMessages();
+  const { data, isLoading, isFetching, error } = useWebsiteStatsQuery({ websiteId: pixelId });
 
   const { pageviews, visitors, visits, comparison } = data || {};
 
@@ -22,19 +22,19 @@ export function PixelMetricsBar({
     ? [
         {
           value: visitors,
-          label: formatMessage(labels.visitors),
+          label: t(labels.visitors),
           change: visitors - comparison.visitors,
           formatValue: formatLongNumber,
         },
         {
           value: visits,
-          label: formatMessage(labels.visits),
+          label: t(labels.visits),
           change: visits - comparison.visits,
           formatValue: formatLongNumber,
         },
         {
           value: pageviews,
-          label: formatMessage(labels.views),
+          label: t(labels.views),
           change: pageviews - comparison.pageviews,
           formatValue: formatLongNumber,
         },

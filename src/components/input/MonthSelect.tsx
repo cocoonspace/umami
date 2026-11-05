@@ -1,4 +1,4 @@
-import { Row, Select, ListItem } from '@umami/react-zen';
+import { ListItem, Row, Select } from '@umami/react-zen';
 import { useLocale } from '@/components/hooks';
 import { formatDate } from '@/lib/date';
 
@@ -24,7 +24,7 @@ export function MonthSelect({ date = new Date(), onChange }) {
 
   return (
     <Row gap>
-      <Select value={month} onChange={handleMonthChange}>
+      <Select value={month} onChange={value => handleMonthChange(value as number)}>
         {months.map(m => {
           return (
             <ListItem id={m} key={m}>
@@ -33,7 +33,7 @@ export function MonthSelect({ date = new Date(), onChange }) {
           );
         })}
       </Select>
-      <Select value={year} onChange={handleYearChange}>
+      <Select value={year} onChange={value => handleYearChange(value as number)}>
         {years.map(y => {
           return (
             <ListItem id={y} key={y}>

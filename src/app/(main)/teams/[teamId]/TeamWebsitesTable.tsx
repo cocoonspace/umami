@@ -1,9 +1,10 @@
 import { DataColumn, DataTable, Row } from '@umami/react-zen';
-import { useMessages } from '@/components/hooks';
-import Link from 'next/link';
-import { ROLES } from '@/lib/constants';
 import { TeamMemberEditButton } from '@/app/(main)/teams/[teamId]/TeamMemberEditButton';
 import { TeamMemberRemoveButton } from '@/app/(main)/teams/[teamId]/TeamMemberRemoveButton';
+import Link from '@/components/common/Link';
+import { SortableLabel } from '@/components/common/SortableLabel';
+import { useMessages } from '@/components/hooks';
+import { ROLES } from '@/lib/constants';
 
 export function TeamWebsitesTable({
   teamId,
@@ -14,15 +15,15 @@ export function TeamWebsitesTable({
   data: any[];
   allowEdit: boolean;
 }) {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
 
   return (
     <DataTable data={data}>
-      <DataColumn id="name" label={formatMessage(labels.name)}>
+      <DataColumn id="name" label={<SortableLabel label={t(labels.name)} sortKey="name" />}>
         {(row: any) => <Link href={`/teams/${teamId}/websites/${row.id}`}>{row.name}</Link>}
       </DataColumn>
-      <DataColumn id="domain" label={formatMessage(labels.domain)} />
-      <DataColumn id="createdBy" label={formatMessage(labels.createdBy)}>
+      <DataColumn id="domain" label={<SortableLabel label={t(labels.domain)} sortKey="domain" />} />
+      <DataColumn id="createdBy" label={t(labels.createdBy)}>
         {(row: any) => row?.createUser?.username}
       </DataColumn>
       {allowEdit && (

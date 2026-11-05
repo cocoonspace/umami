@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { getQueryFilters, parseRequest } from '@/lib/request';
-import { unauthorized, json } from '@/lib/response';
-import { canViewWebsite } from '@/permissions';
-import { getEventDataEvents } from '@/queries/sql/events/getEventDataEvents';
+import { json, unauthorized } from '@/lib/response';
 import { filterParams } from '@/lib/schema';
+import { canViewWebsiteSection } from '@/permissions';
+import { getEventDataEvents } from '@/queries/sql/events/getEventDataEvents';
 
 export async function GET(
   request: Request,
@@ -23,7 +23,7 @@ export async function GET(
 
   const { websiteId } = await params;
 
-  if (!(await canViewWebsite(auth, websiteId))) {
+  if (!(await canViewWebsiteSection(auth, websiteId, 'events'))) {
     return unauthorized();
   }
 

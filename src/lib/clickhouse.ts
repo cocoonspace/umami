@@ -1,27 +1,49 @@
-import { ClickHouseClient, createClient } from '@clickhouse/client';
+import { type ClickHouseClient, createClient } from '@clickhouse/client';
 import { formatInTimeZone } from 'date-fns-tz';
 import debug from 'debug';
 import { CLICKHOUSE } from '@/lib/db';
-import { DEFAULT_PAGE_SIZE, FILTER_COLUMNS, OPERATORS } from './constants';
+import { DATA_TYPE, DEFAULT_PAGE_SIZE, FILTER_COLUMNS, OPERATORS } from './constants';
 import { filtersObjectToArray } from './params';
-import { QueryFilters, QueryOptions } from './types';
+import type { Operator, PropertyFilter, QueryFilters, QueryOptions } from './types';
 
 export const CLICKHOUSE_DATE_FORMATS = {
-  utc: '%Y-%m-%dT%H:%i:%SZ',
-  second: '%Y-%m-%d %H:%i:%S',
-  minute: '%Y-%m-%d %H:%i:00',
+  // %i is unsupported by ClickHouse before v23.4. %T and %R work on both
+  // older and newer versions while retaining the intended ISO time format.
+  utc: '%Y-%m-%dT%TZ',
+  second: '%Y-%m-%dT%T',
+  minute: '%Y-%m-%d %R:00',
   hour: '%Y-%m-%d %H:00:00',
   day: '%Y-%m-%d',
   month: '%Y-%m-01',
   year: '%Y-01-01',
 };
 
+// Always Z-suffixed so JS parses the already-shifted local value as an unambiguous
+// instant instead of re-interpreting it in the runtime's own timezone. Matches
+// Postgres's getDateSQL convention - see prisma.ts's DATE_FORMATS.
+const CLICKHOUSE_BUCKET_FORMATS = {
+  minute: '%Y-%m-%dT%R:00Z',
+  hour: '%Y-%m-%dT%H:00:00Z',
+  day: '%Y-%m-%dT00:00:00Z',
+  month: '%Y-%m-01T00:00:00Z',
+  year: '%Y-01-01T00:00:00Z',
+};
+
 const log = debug('umami:clickhouse');
+
+const EQUALITY_OPERATORS: Operator[] = [OPERATORS.equals, OPERATORS.notEquals];
+const REGEX_OPERATORS: Operator[] = [OPERATORS.regex, OPERATORS.notRegex];
 
 let clickhouse: ClickHouseClient;
 const enabled = Boolean(process.env.CLICKHOUSE_URL);
 
 function getClient() {
+  const clickhouseUrl = process.env.CLICKHOUSE_URL;
+
+  if (!clickhouseUrl) {
+    throw new Error('CLICKHOUSE_URL is not set.');
+  }
+
   const {
     hostname,
     port,
@@ -29,7 +51,7 @@ function getClient() {
     protocol,
     username = 'default',
     password,
-  } = new URL(process.env.CLICKHOUSE_URL);
+  } = new URL(clickhouseUrl);
 
   const client = createClient({
     url: `${protocol}//${hostname}:${port}`,
@@ -51,66 +73,112 @@ function getUTCString(date?: Date | string | number) {
   return formatInTimeZone(date || new Date(), 'UTC', 'yyyy-MM-dd HH:mm:ss');
 }
 
+// ClickHouse time zone names are case-sensitive: several callers default to the
+// lowercase "utc" that Postgres accepts but ClickHouse rejects. Intl accepts any
+// casing and returns the canonical IANA name.
+function normalizeTimezone(timezone?: string) {
+  if (!timezone) {
+    return timezone;
+  }
+
+  try {
+    return Intl.DateTimeFormat(undefined, { timeZone: timezone }).resolvedOptions().timeZone;
+  } catch {
+    return timezone;
+  }
+}
+
 function getDateStringSQL(data: any, unit: string = 'utc', timezone?: string) {
-  if (timezone) {
-    return `formatDateTime(${data}, '${CLICKHOUSE_DATE_FORMATS[unit]}', '${timezone}')`;
+  const tz = normalizeTimezone(timezone);
+
+  if (tz) {
+    return `formatDateTime(${data}, '${CLICKHOUSE_DATE_FORMATS[unit]}', '${tz}')`;
   }
 
   return `formatDateTime(${data}, '${CLICKHOUSE_DATE_FORMATS[unit]}')`;
 }
 
 function getDateSQL(field: string, unit: string, timezone?: string) {
-  if (timezone) {
-    return `toDateTime(date_trunc('${unit}', ${field}, '${timezone}'))`;
+  const tz = normalizeTimezone(timezone);
+  const format = CLICKHOUSE_BUCKET_FORMATS[unit];
+
+  if (tz) {
+    return `formatDateTime(date_trunc('${unit}', ${field}, '${tz}'), '${format}', '${tz}')`;
   }
-  return `toDateTime(date_trunc('${unit}', ${field}))`;
+  return `formatDateTime(date_trunc('${unit}', ${field}), '${format}')`;
 }
 
 function getSearchSQL(column: string, param: string = 'search'): string {
   return `and positionCaseInsensitive(${column}, {${param}:String}) > 0`;
 }
 
-function mapFilter(column: string, operator: string, name: string, type: string = 'String') {
-  const value = `{${name}:${type}}`;
+function mapFilter(
+  column: string,
+  operator: Operator,
+  name: string,
+  type: string = 'String',
+  paramName?: string,
+) {
+  const param = paramName ?? name;
+  const value = `{${param}:${type}}`;
 
   switch (operator) {
     case OPERATORS.equals:
-      return `${column} = ${value}`;
+      return `${column} IN {${param}:Array(${type})}`;
     case OPERATORS.notEquals:
-      return `${column} != ${value}`;
+      return `${column} NOT IN {${param}:Array(${type})}`;
     case OPERATORS.contains:
       return `positionCaseInsensitive(${column}, ${value}) > 0`;
     case OPERATORS.doesNotContain:
       return `positionCaseInsensitive(${column}, ${value}) = 0`;
+    case OPERATORS.regex:
+      return `match(${column}, concat('(?i)', ${value}))`;
+    case OPERATORS.notRegex:
+      return `not match(${column}, concat('(?i)', ${value}))`;
     default:
       return '';
   }
 }
 
 function getFilterQuery(filters: Record<string, any>, options: QueryOptions = {}) {
-  const query = filtersObjectToArray(filters, options).reduce((arr, { name, column, operator }) => {
-    const isCohort = options?.isCohort;
+  const { isCohort, cohortMatch, cohortActionName } = options;
+  const isOr = isCohort ? cohortMatch === 'any' : filters.match === 'any';
+  const orClauses: string[] = [];
+  const andClauses: string[] = [];
 
+  filtersObjectToArray(filters, options).forEach(({ name, column, operator, paramName }) => {
     if (isCohort) {
       column = FILTER_COLUMNS[name.slice('cohort_'.length)];
     }
 
     if (column) {
-      if (name === 'eventType') {
-        arr.push(`and ${mapFilter(column, operator, name, 'UInt32')}`);
+      const isAlwaysAnd = name === 'eventType' || (isCohort && name === cohortActionName);
+
+      if (isAlwaysAnd) {
+        andClauses.push(
+          `and ${mapFilter(column, operator, name, name === 'eventType' ? 'UInt32' : 'String', paramName)}`,
+        );
+      } else if (isOr) {
+        orClauses.push(mapFilter(column, operator, name, 'String', paramName));
       } else {
-        arr.push(`and ${mapFilter(column, operator, name)}`);
+        andClauses.push(`and ${mapFilter(column, operator, name, 'String', paramName)}`);
       }
 
       if (name === 'referrer') {
-        arr.push(`and referrer_domain != hostname`);
+        andClauses.push(`and referrer_domain != hostname`);
       }
     }
+  });
 
-    return arr;
-  }, []);
+  const parts: string[] = [];
 
-  return query.join('\n');
+  if (orClauses.length > 0) {
+    parts.push(`and (\n  ${orClauses.join('\n  or ')}\n)`);
+  }
+
+  parts.push(...andClauses);
+
+  return parts.join('\n');
 }
 
 function getCohortQuery(filters: Record<string, any>) {
@@ -118,16 +186,42 @@ function getCohortQuery(filters: Record<string, any>) {
     return '';
   }
 
-  const filterQuery = getFilterQuery(filters, { isCohort: true });
+  const cohortMatch = filters.cohort_match;
+  const cohortActionName = filters.cohort_actionName;
+
+  const filterQuery = getFilterQuery(filters, { isCohort: true, cohortMatch, cohortActionName });
 
   return `join (
-      select distinct session_id
+      select distinct session_id as cohort_session_id
       from website_event
       where website_id = {websiteId:UUID}
       and created_at between {cohort_startDate:DateTime64} and {cohort_endDate:DateTime64}
       ${filterQuery}
     ) as cohort
-      on cohort.session_id = website_event.session_id
+      on cohort.cohort_session_id = website_event.session_id
+    `;
+}
+
+function getExcludeBounceQuery(filters: Record<string, any>) {
+  if (filters.excludeBounce !== true) {
+    return '';
+  }
+
+  return `join
+    (select session_id as exclude_session_id, visit_id as exclude_visit_id
+    from website_event_stats_hourly
+    where website_id = {websiteId:UUID}
+      and created_at between {startDate:DateTime64} and {endDate:DateTime64}
+      and event_type != 5
+    group by session_id, visit_id
+    having sum(views) > 1
+      or (
+        sum(views) = 1
+        and sumIf(length(event_name), event_type = 2) > 0
+      )
+    ) excludeBounce
+    on excludeBounce.exclude_session_id = website_event.session_id
+      and excludeBounce.exclude_visit_id = website_event.visit_id
     `;
 }
 
@@ -154,26 +248,425 @@ function getDateQuery(filters: Record<string, any>) {
 function getQueryParams(filters: Record<string, any>) {
   return {
     ...filters,
-    ...filtersObjectToArray(filters).reduce((obj, { name, value }) => {
-      if (name && value !== undefined) {
-        obj[name] = value;
-      }
+    ...filtersObjectToArray(filters).reduce((obj, { name, column, operator, value, paramName }) => {
+      const resolvedColumn =
+        column || (name?.startsWith('cohort_') && FILTER_COLUMNS[name.slice('cohort_'.length)]);
+
+      if (!resolvedColumn || !name || value === undefined) return obj;
+
+      const key = paramName ?? name;
+
+      obj[key] = EQUALITY_OPERATORS.includes(operator)
+        ? Array.isArray(value)
+          ? value
+          : [value]
+        : value;
 
       return obj;
     }, {}),
   };
 }
 
-function parseFilters(filters: Record<string, any>, options?: QueryOptions) {
+function parseFilters(rawFilters: Record<string, any>, options?: QueryOptions) {
+  const filters = rawFilters.timezone
+    ? { ...rawFilters, timezone: normalizeTimezone(rawFilters.timezone) }
+    : rawFilters;
   const cohortFilters = Object.fromEntries(
     Object.entries(filters).filter(([key]) => key.startsWith('cohort_')),
   );
+  const { sql: eventPropertyFilterQuery, params: eventPropertyFilterParams } =
+    getEventPropertyFilterQuery((filters as QueryFilters).eventPropertyFilters, filters.timezone);
+  const { sql: sessionPropertyFilterQuery, params: sessionPropertyFilterParams } =
+    getSessionPropertyFilterQuery(
+      (filters as QueryFilters).sessionPropertyFilters,
+      filters.timezone,
+    );
 
   return {
-    filterQuery: getFilterQuery(filters, options),
+    filterQuery: [
+      getFilterQuery(filters, options),
+      eventPropertyFilterQuery,
+      sessionPropertyFilterQuery,
+    ]
+      .filter(Boolean)
+      .join('\n'),
     dateQuery: getDateQuery(filters),
-    queryParams: getQueryParams(filters),
+    queryParams: {
+      ...getQueryParams(filters),
+      ...eventPropertyFilterParams,
+      ...sessionPropertyFilterParams,
+    },
     cohortQuery: getCohortQuery(cohortFilters),
+    excludeBounceQuery: getExcludeBounceQuery(filters),
+  };
+}
+
+function getPropertyFilterQuery(
+  filters: PropertyFilter[] = [],
+  propertyType: 'event' | 'session' = 'event',
+  timezone?: string,
+): {
+  sql: string;
+  params: Record<string, any>;
+} {
+  if (!filters.length) return { sql: '', params: {} };
+
+  const parts: string[] = [];
+  const params: Record<string, any> = {};
+  const table = propertyType === 'event' ? 'event_data' : 'session_data final';
+  const column = propertyType === 'event' ? 'event_id' : 'session_id';
+  const outerColumn = propertyType === 'event' ? 'event_id' : 'website_event.session_id';
+  const dateFilter =
+    propertyType === 'event'
+      ? `and created_at between {startDate:DateTime64} and {endDate:DateTime64}`
+      : '';
+
+  filters.forEach(({ propertyName, dataType, operator, value }, i) => {
+    const keyParam = `pf_key_${i}`;
+    const valParam = `pf_val_${i}`;
+    params[keyParam] = propertyName;
+
+    let condition: string;
+    switch (dataType) {
+      case DATA_TYPE.number: {
+        const col = 'number_value';
+        params[valParam] = parseFloat(value) || 0;
+        const opMap: Record<string, string> = {
+          [OPERATORS.equals]: `${col} = {${valParam}:Float64}`,
+          [OPERATORS.notEquals]: `${col} != {${valParam}:Float64}`,
+          [OPERATORS.greaterThan]: `${col} > {${valParam}:Float64}`,
+          [OPERATORS.lessThan]: `${col} < {${valParam}:Float64}`,
+          [OPERATORS.greaterThanEquals]: `${col} >= {${valParam}:Float64}`,
+          [OPERATORS.lessThanEquals]: `${col} <= {${valParam}:Float64}`,
+        };
+        condition = opMap[operator] ?? `${col} = {${valParam}:Float64}`;
+        break;
+      }
+      case DATA_TYPE.date: {
+        if (!value) return;
+        params[valParam] = value;
+        const dateCol = timezone
+          ? `toDate(toTimezone(date_value, {timezone:String}))`
+          : `toDate(toTimezone(date_value, 'UTC'))`;
+        const opMap: Record<string, string> = {
+          [OPERATORS.before]: `${dateCol} < {${valParam}:Date}`,
+          [OPERATORS.after]: `${dateCol} > {${valParam}:Date}`,
+        };
+        condition = opMap[operator] ?? `${dateCol} = {${valParam}:Date}`;
+        break;
+      }
+      case DATA_TYPE.array: {
+        if (!value) return;
+        params[valParam] = value;
+        condition =
+          operator === OPERATORS.contains
+            ? `has(JSONExtract(ifNull(string_value, '[]'), 'Array(String)'), {${valParam}:String})`
+            : `not has(JSONExtract(ifNull(string_value, '[]'), 'Array(String)'), {${valParam}:String})`;
+        break;
+      }
+      default: {
+        const col = 'string_value';
+
+        if (EQUALITY_OPERATORS.includes(operator)) {
+          const vals = value.split(',').filter(Boolean);
+          if (!vals.length) return;
+          params[valParam] = vals;
+          condition = mapFilter(
+            col,
+            operator === OPERATORS.equals ? OPERATORS.equals : OPERATORS.notEquals,
+            valParam,
+            'String',
+          );
+        } else if (REGEX_OPERATORS.includes(operator)) {
+          if (!value) return;
+          params[valParam] = value;
+          condition = mapFilter(
+            col,
+            operator === OPERATORS.regex ? OPERATORS.regex : OPERATORS.notRegex,
+            valParam,
+            'String',
+          );
+        } else {
+          if (!value) return;
+          params[valParam] = value;
+          condition = mapFilter(
+            col,
+            operator === OPERATORS.contains ? OPERATORS.contains : OPERATORS.doesNotContain,
+            valParam,
+            'String',
+          );
+        }
+        break;
+      }
+    }
+
+    if (propertyType === 'session') {
+      parts.push(`and tuple(website_event.website_id, website_event.session_id) in (
+      select website_id, session_id
+      from ${table}
+      where website_id = {websiteId:UUID}
+        and data_key = {${keyParam}:String}
+        and data_type = ${dataType}
+        and ${condition}
+    )`);
+    } else {
+      parts.push(`and ${outerColumn} in (
+      select ${column}
+      from ${table}
+      where website_id = {websiteId:UUID}
+        ${dateFilter}
+        and data_key = {${keyParam}:String}
+        and data_type = ${dataType}
+        and ${condition}
+    )`);
+    }
+  });
+
+  return { sql: parts.join('\n'), params };
+}
+
+function getEventPropertyFilterQuery(
+  filters: PropertyFilter[] = [],
+  timezone?: string,
+): {
+  sql: string;
+  params: Record<string, any>;
+} {
+  if (!filters.length) {
+    return { sql: '', params: {} };
+  }
+
+  const clauses: string[] = [];
+  const keyRefs: string[] = [];
+  const params: Record<string, any> = {};
+
+  filters.forEach(({ propertyName, dataType, operator, value }, index) => {
+    const keyParam = `epf_key_${index}`;
+    const valParam = `epf_val_${index}`;
+    params[keyParam] = propertyName;
+    keyRefs.push(`{${keyParam}:String}`);
+
+    let condition: string;
+
+    switch (dataType) {
+      case DATA_TYPE.number: {
+        const col = 'number_value';
+        params[valParam] = parseFloat(value) || 0;
+        const opMap: Record<string, string> = {
+          [OPERATORS.equals]: `${col} = {${valParam}:Float64}`,
+          [OPERATORS.notEquals]: `${col} != {${valParam}:Float64}`,
+          [OPERATORS.greaterThan]: `${col} > {${valParam}:Float64}`,
+          [OPERATORS.lessThan]: `${col} < {${valParam}:Float64}`,
+          [OPERATORS.greaterThanEquals]: `${col} >= {${valParam}:Float64}`,
+          [OPERATORS.lessThanEquals]: `${col} <= {${valParam}:Float64}`,
+        };
+        condition = opMap[operator] ?? `${col} = {${valParam}:Float64}`;
+        break;
+      }
+      case DATA_TYPE.date: {
+        if (!value) return;
+        params[valParam] = value;
+        const dateCol = timezone
+          ? `toDate(toTimezone(date_value, {timezone:String}))`
+          : `toDate(toTimezone(date_value, 'UTC'))`;
+        const opMap: Record<string, string> = {
+          [OPERATORS.before]: `${dateCol} < {${valParam}:Date}`,
+          [OPERATORS.after]: `${dateCol} > {${valParam}:Date}`,
+        };
+        condition = opMap[operator] ?? `${dateCol} = {${valParam}:Date}`;
+        break;
+      }
+      case DATA_TYPE.array: {
+        if (!value) return;
+        params[valParam] = value;
+        condition =
+          operator === OPERATORS.contains
+            ? `has(JSONExtract(ifNull(string_value, '[]'), 'Array(String)'), {${valParam}:String})`
+            : `not has(JSONExtract(ifNull(string_value, '[]'), 'Array(String)'), {${valParam}:String})`;
+        break;
+      }
+      default: {
+        const col = 'string_value';
+
+        if (EQUALITY_OPERATORS.includes(operator)) {
+          const vals = value.split(',').filter(Boolean);
+
+          if (!vals.length) return;
+
+          params[valParam] = vals;
+          condition = mapFilter(
+            col,
+            operator === OPERATORS.equals ? OPERATORS.equals : OPERATORS.notEquals,
+            valParam,
+            'String',
+          );
+        } else if (REGEX_OPERATORS.includes(operator)) {
+          if (!value) return;
+
+          params[valParam] = value;
+          condition = mapFilter(
+            col,
+            operator === OPERATORS.regex ? OPERATORS.regex : OPERATORS.notRegex,
+            valParam,
+            'String',
+          );
+        } else {
+          if (!value) return;
+
+          params[valParam] = value;
+          condition = mapFilter(
+            col,
+            operator === OPERATORS.contains ? OPERATORS.contains : OPERATORS.doesNotContain,
+            valParam,
+            'String',
+          );
+        }
+        break;
+      }
+    }
+
+    clauses.push(
+      `max(if(data_key = {${keyParam}:String} and data_type = ${dataType} and ${condition}, 1, 0)) = 1`,
+    );
+  });
+
+  if (!clauses.length) {
+    return { sql: '', params: {} };
+  }
+
+  return {
+    sql: `and website_event.event_id in (
+      select event_id
+      from event_data
+      where website_id = {websiteId:UUID}
+        and created_at between {startDate:DateTime64} and {endDate:DateTime64}
+        and data_key in (${keyRefs.join(', ')})
+      group by event_id
+      having ${clauses.join('\n        and ')}
+    )`,
+    params,
+  };
+}
+
+function getSessionPropertyFilterQuery(
+  filters: PropertyFilter[] = [],
+  timezone?: string,
+): {
+  sql: string;
+  params: Record<string, any>;
+} {
+  if (!filters.length) {
+    return { sql: '', params: {} };
+  }
+
+  const clauses: string[] = [];
+  const keyRefs: string[] = [];
+  const params: Record<string, any> = {};
+
+  filters.forEach(({ propertyName, dataType, operator, value }, index) => {
+    const keyParam = `spf_key_${index}`;
+    const valParam = `spf_val_${index}`;
+    params[keyParam] = propertyName;
+    keyRefs.push(`{${keyParam}:String}`);
+
+    let condition: string;
+
+    switch (dataType) {
+      case DATA_TYPE.number: {
+        const col = 'number_value';
+        params[valParam] = parseFloat(value) || 0;
+        const opMap: Record<string, string> = {
+          [OPERATORS.equals]: `${col} = {${valParam}:Float64}`,
+          [OPERATORS.notEquals]: `${col} != {${valParam}:Float64}`,
+          [OPERATORS.greaterThan]: `${col} > {${valParam}:Float64}`,
+          [OPERATORS.lessThan]: `${col} < {${valParam}:Float64}`,
+          [OPERATORS.greaterThanEquals]: `${col} >= {${valParam}:Float64}`,
+          [OPERATORS.lessThanEquals]: `${col} <= {${valParam}:Float64}`,
+        };
+        condition = opMap[operator] ?? `${col} = {${valParam}:Float64}`;
+        break;
+      }
+      case DATA_TYPE.date: {
+        if (!value) return;
+        params[valParam] = value;
+        const dateCol = timezone
+          ? `toDate(toTimezone(date_value, {timezone:String}))`
+          : `toDate(toTimezone(date_value, 'UTC'))`;
+        const opMap: Record<string, string> = {
+          [OPERATORS.before]: `${dateCol} < {${valParam}:Date}`,
+          [OPERATORS.after]: `${dateCol} > {${valParam}:Date}`,
+        };
+        condition = opMap[operator] ?? `${dateCol} = {${valParam}:Date}`;
+        break;
+      }
+      case DATA_TYPE.array: {
+        if (!value) return;
+        params[valParam] = value;
+        condition =
+          operator === OPERATORS.contains
+            ? `has(JSONExtract(ifNull(string_value, '[]'), 'Array(String)'), {${valParam}:String})`
+            : `not has(JSONExtract(ifNull(string_value, '[]'), 'Array(String)'), {${valParam}:String})`;
+        break;
+      }
+      default: {
+        const col = 'string_value';
+
+        if (EQUALITY_OPERATORS.includes(operator)) {
+          const vals = value.split(',').filter(Boolean);
+
+          if (!vals.length) return;
+
+          params[valParam] = vals;
+          condition = mapFilter(
+            col,
+            operator === OPERATORS.equals ? OPERATORS.equals : OPERATORS.notEquals,
+            valParam,
+            'String',
+          );
+        } else if (REGEX_OPERATORS.includes(operator)) {
+          if (!value) return;
+
+          params[valParam] = value;
+          condition = mapFilter(
+            col,
+            operator === OPERATORS.regex ? OPERATORS.regex : OPERATORS.notRegex,
+            valParam,
+            'String',
+          );
+        } else {
+          if (!value) return;
+
+          params[valParam] = value;
+          condition = mapFilter(
+            col,
+            operator === OPERATORS.contains ? OPERATORS.contains : OPERATORS.doesNotContain,
+            valParam,
+            'String',
+          );
+        }
+        break;
+      }
+    }
+
+    clauses.push(
+      `max(if(data_key = {${keyParam}:String} and data_type = ${dataType} and ${condition}, 1, 0)) = 1`,
+    );
+  });
+
+  if (!clauses.length) {
+    return { sql: '', params: {} };
+  }
+
+  return {
+    sql: `and tuple(website_event.website_id, website_event.session_id) in (
+      select website_id, session_id
+      from session_data final
+      where website_id = {websiteId:UUID}
+        and data_key in (${keyRefs.join(', ')})
+      group by website_id, session_id
+      having ${clauses.join('\n        and ')}
+    )`,
+    params,
   };
 }
 
@@ -195,13 +688,23 @@ async function pagedRawQuery(
     .filter(n => n)
     .join('\n');
 
-  const count = await rawQuery(`select count(*) as num from (${query}) t`, queryParams).then(
-    res => res[0].num,
-  );
+  const { maxResults } = filters;
+  const countQuery = maxResults
+    ? `select count(*) as num from (select 1 from (${query}) t limit ${+maxResults}) t2`
+    : `select count(*) as num from (${query}) t`;
 
+  const count = await rawQuery(countQuery, queryParams).then(res => res[0].num);
   const data = await rawQuery(`${query}${statements}`, queryParams, name);
 
-  return { data, count, page: +page, pageSize: size, orderBy, search };
+  return {
+    data,
+    count,
+    page: +page,
+    pageSize: size,
+    orderBy,
+    search,
+    isCapped: !!maxResults && +count >= +maxResults,
+  };
 }
 
 async function rawQuery<T = unknown>(
@@ -248,7 +751,7 @@ async function findFirst(data: any[]) {
 
 async function connect() {
   if (enabled && !clickhouse) {
-    clickhouse = process.env.CLICKHOUSE_URL && (globalThis[CLICKHOUSE] || getClient());
+    clickhouse = globalThis[CLICKHOUSE] || getClient();
   }
 
   return clickhouse;
@@ -263,6 +766,7 @@ export default {
   getDateSQL,
   getSearchSQL,
   getFilterQuery,
+  getPropertyFilterQuery,
   getUTCString,
   parseFilters,
   pagedRawQuery,

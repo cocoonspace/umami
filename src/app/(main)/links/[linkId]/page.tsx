@@ -1,8 +1,14 @@
+import type { Metadata } from 'next';
+import { getLink } from '@/queries/prisma';
 import { LinkPage } from './LinkPage';
-import { Metadata } from 'next';
 
 export default async function ({ params }: { params: Promise<{ linkId: string }> }) {
   const { linkId } = await params;
+  const link = await getLink(linkId);
+
+  if (!link || link?.deletedAt) {
+    return null;
+  }
 
   return <LinkPage linkId={linkId} />;
 }

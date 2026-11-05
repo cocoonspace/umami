@@ -1,13 +1,13 @@
-import { useEffect, useCallback, useState } from 'react';
-import { Button, AlertBanner, Column, Row } from '@umami/react-zen';
-import { setItem } from '@/lib/storage';
-import { useVersion, checkVersion } from '@/store/version';
-import { REPO_URL, VERSION_CHECK } from '@/lib/constants';
-import { useMessages } from '@/components/hooks';
+import { Alert, AlertTitle, Button, Column, Row } from '@umami/react-zen';
 import { usePathname } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { useMessages } from '@/components/hooks';
+import { REPO_URL, VERSION_CHECK } from '@/lib/constants';
+import { setItem } from '@/lib/storage';
+import { checkVersion, useVersion } from '@/store/version';
 
 export function UpdateNotice({ user, config }) {
-  const { formatMessage, labels, messages } = useMessages();
+  const { t, labels, messages } = useMessages();
   const { latest, checked, hasUpdate, releaseUrl } = useVersion();
   const pathname = usePathname();
   const [dismissed, setDismissed] = useState(checked);
@@ -49,12 +49,15 @@ export function UpdateNotice({ user, config }) {
   return (
     <Column justifyContent="center" alignItems="center" position="fixed" top="10px" width="100%">
       <Row width="600px">
-        <AlertBanner title={formatMessage(messages.newVersionAvailable, { version: `v${latest}` })}>
-          <Button variant="primary" onPress={handleViewClick}>
-            {formatMessage(labels.viewDetails)}
-          </Button>
-          <Button onPress={handleDismissClick}>{formatMessage(labels.dismiss)}</Button>
-        </AlertBanner>
+        <Alert style={{ width: '100%' }}>
+          <AlertTitle>{t(messages.newVersionAvailable, { version: `v${latest}` })}</AlertTitle>
+          <Row gap="3" paddingTop="2">
+            <Button variant="primary" onPress={handleViewClick}>
+              {t(labels.viewDetails)}
+            </Button>
+            <Button onPress={handleDismissClick}>{t(labels.dismiss)}</Button>
+          </Row>
+        </Alert>
       </Row>
     </Column>
   );

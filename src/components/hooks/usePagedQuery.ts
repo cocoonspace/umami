@@ -1,7 +1,7 @@
-import { UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
+import type { UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
+import type { PageResult } from '@/lib/types';
 import { useApi } from './useApi';
 import { useNavigation } from './useNavigation';
-import { PageResult } from '@/lib/types';
 
 export function usePagedQuery<TData = any, TError = Error>({
   queryKey,
@@ -15,13 +15,13 @@ export function usePagedQuery<TData = any, TError = Error>({
   queryFn: (params?: object) => Promise<PageResult<TData>> | PageResult<TData>;
 }): UseQueryResult<PageResult<TData>, TError> {
   const {
-    query: { page, search },
+    query: { page, search, orderBy, sortDescending },
   } = useNavigation();
   const { useQuery } = useApi();
 
   return useQuery<PageResult<TData>, TError>({
-    queryKey: [...queryKey, page, search] as const,
-    queryFn: () => queryFn({ page, search }),
+    queryKey: [...queryKey, page, search, orderBy, sortDescending] as const,
+    queryFn: () => queryFn({ page, search, orderBy, sortDescending }),
     ...options,
   });
 }

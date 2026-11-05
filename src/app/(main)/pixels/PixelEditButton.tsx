@@ -1,21 +1,21 @@
+import { Icon } from '@umami/react-zen';
+import { LinkButton } from '@/components/common/LinkButton';
+import { useMessages, useNavigation } from '@/components/hooks';
 import { Edit } from '@/components/icons';
-import { PixelEditForm } from './PixelEditForm';
-import { useMessages } from '@/components/hooks';
-import { DialogButton } from '@/components/input/DialogButton';
 
 export function PixelEditButton({ pixelId }: { pixelId: string }) {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
+  const { renderUrl } = useNavigation();
 
   return (
-    <DialogButton
-      icon={<Edit />}
-      title={formatMessage(labels.addPixel)}
+    <LinkButton
+      href={renderUrl(`/pixels/${pixelId}/edit`, false)}
+      aria-label={t(labels.edit)}
       variant="quiet"
-      width="600px"
     >
-      {({ close }) => {
-        return <PixelEditForm pixelId={pixelId} onClose={close} />;
-      }}
-    </DialogButton>
+      <Icon>
+        <Edit />
+      </Icon>
+    </LinkButton>
   );
 }

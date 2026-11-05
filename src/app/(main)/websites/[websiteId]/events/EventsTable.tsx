@@ -1,56 +1,72 @@
 import {
-  DataTable,
-  DataColumn,
-  Row,
-  Text,
-  DataTableProps,
-  IconLabel,
   Button,
+  DataColumn,
+  DataTable,
+  type DataTableProps,
   Dialog,
   DialogTrigger,
   Icon,
   Popover,
+  Row,
+  Text,
 } from '@umami/react-zen';
-import { useFormat, useMessages, useNavigation } from '@/components/hooks';
 import { Avatar } from '@/components/common/Avatar';
-import Link from 'next/link';
-import { Eye, FileText } from '@/components/icons';
-import { Lightning } from '@/components/svg';
 import { DateDistance } from '@/components/common/DateDistance';
+import { IconLabel } from '@/components/common/IconLabel';
+import Link from '@/components/common/Link';
 import { TypeIcon } from '@/components/common/TypeIcon';
+import { useFormat, useMessages, useNavigation } from '@/components/hooks';
+import { Eye, FileText } from '@/components/icons';
 import { EventData } from '@/components/metrics/EventData';
+import { Lightning } from '@/components/svg';
 
 export function EventsTable(props: DataTableProps) {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const { updateParams } = useNavigation();
   const { formatValue } = useFormat();
 
+  const renderLink = (label: string, hostname: string) => {
+    return (
+      <a
+        href={`//${hostname}${label}`}
+        style={{ fontWeight: 'bold' }}
+        target="_blank"
+        rel="noreferrer noopener"
+      >
+        {label}
+      </a>
+    );
+  };
+
   return (
     <DataTable {...props}>
-      <DataColumn id="event" label={formatMessage(labels.event)} width="2fr">
+      <DataColumn id="event" label={t(labels.event)} width="2fr">
         {(row: any) => {
           return (
-            <Row alignItems="center" wrap="wrap" gap>
-              <Row>
+            <Row alignItems="center" gap="2" flexWrap="nowrap" style={{ minWidth: 0 }}>
+              <Row style={{ flexShrink: 0 }}>
                 <IconLabel
                   icon={row.eventName ? <Lightning /> : <Eye />}
-                  label={formatMessage(row.eventName ? labels.triggeredEvent : labels.viewedPage)}
+                  label={t(row.eventName ? labels.triggeredEvent : labels.viewedPage)}
+                  labelProps={{ wrap: 'nowrap' }}
                 />
               </Row>
-              <Text
-                weight="bold"
-                style={{ maxWidth: '300px' }}
-                title={row.eventName || row.urlPath}
-                truncate
-              >
-                {row.eventName || row.urlPath}
-              </Text>
-              {row.hasData > 0 && <PropertiesButton websiteId={row.websiteId} eventId={row.id} />}
+              <Row alignItems="center" gap flexWrap="nowrap" style={{ minWidth: 0 }}>
+                <Text
+                  weight="bold"
+                  style={{ maxWidth: '300px' }}
+                  title={row.eventName || row.urlPath}
+                  truncate
+                >
+                  {row.eventName || renderLink(row.urlPath, row.hostname)}
+                </Text>
+                {row.hasData > 0 && <PropertiesButton websiteId={row.websiteId} eventId={row.id} />}
+              </Row>
             </Row>
           );
         }}
       </DataColumn>
-      <DataColumn id="session" label={formatMessage(labels.session)} width="80px">
+      <DataColumn id="session" label={t(labels.session)} width="80px">
         {(row: any) => {
           return (
             <Link href={updateParams({ session: row.sessionId })}>
@@ -59,28 +75,28 @@ export function EventsTable(props: DataTableProps) {
           );
         }}
       </DataColumn>
-      <DataColumn id="location" label={formatMessage(labels.location)}>
+      <DataColumn id="location" label={t(labels.location)}>
         {(row: any) => (
           <TypeIcon type="country" value={row.country}>
             {row.city ? `${row.city}, ` : ''} {formatValue(row.country, 'country')}
           </TypeIcon>
         )}
       </DataColumn>
-      <DataColumn id="browser" label={formatMessage(labels.browser)} width="140px">
+      <DataColumn id="browser" label={t(labels.browser)} width="140px">
         {(row: any) => (
           <TypeIcon type="browser" value={row.browser}>
             {formatValue(row.browser, 'browser')}
           </TypeIcon>
         )}
       </DataColumn>
-      <DataColumn id="device" label={formatMessage(labels.device)} width="120px">
+      <DataColumn id="device" label={t(labels.device)} width="140px">
         {(row: any) => (
           <TypeIcon type="device" value={row.device}>
             {formatValue(row.device, 'device')}
           </TypeIcon>
         )}
       </DataColumn>
-      <DataColumn id="created" width="160px" align="end">
+      <DataColumn id="created" width="140px" label={t(labels.created)}>
         {(row: any) => <DateDistance date={new Date(row.createdAt)} />}
       </DataColumn>
     </DataTable>
@@ -97,7 +113,7 @@ const PropertiesButton = props => {
           </Icon>
         </Row>
       </Button>
-      <Popover placement="right">
+      <Popover side="right" sideOffset={8}>
         <Dialog>
           <EventData {...props} />
         </Dialog>

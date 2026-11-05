@@ -1,41 +1,41 @@
-import { Fragment } from 'react';
 import {
-  Icon,
   Button,
-  MenuTrigger,
-  Popover,
+  Icon,
   Menu,
   MenuItem,
-  MenuSeparator,
   MenuSection,
-  Text,
+  MenuSeparator,
+  MenuTrigger,
+  Popover,
   Row,
+  Text,
 } from '@umami/react-zen';
-import { useMessages, useLoginQuery, useNavigation } from '@/components/hooks';
-import { LogOut, UserCircle, LockKeyhole } from '@/components/icons';
+import { Fragment } from 'react';
+import { useLoginQuery, useMessages, useNavigation } from '@/components/hooks';
+import { LockKeyhole, LogOut, UserCircle } from '@/components/icons';
 
 export function ProfileButton() {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const { user } = useLoginQuery();
-  const { renderUrl } = useNavigation();
+  const { renderUrl, router } = useNavigation();
 
   const items = [
     {
       id: 'settings',
-      label: formatMessage(labels.profile),
+      label: t(labels.profile),
       path: renderUrl('/settings/profile'),
       icon: <UserCircle />,
     },
     user.isAdmin &&
       !process.env.cloudMode && {
         id: 'admin',
-        label: formatMessage(labels.admin),
+        label: t(labels.admin),
         path: '/admin',
         icon: <LockKeyhole />,
       },
     {
       id: 'logout',
-      label: formatMessage(labels.logout),
+      label: t(labels.logout),
       path: '/logout',
       icon: <LogOut />,
       separator: true,
@@ -49,15 +49,15 @@ export function ProfileButton() {
           <UserCircle />
         </Icon>
       </Button>
-      <Popover placement="bottom end">
-        <Menu autoFocus="last">
+      <Popover side="bottom" align="end">
+        <Menu>
           <MenuSection title={user.username}>
             <MenuSeparator />
             {items.map(({ id, path, label, icon, separator }) => {
               return (
                 <Fragment key={id}>
                   {separator && <MenuSeparator />}
-                  <MenuItem id={id} href={path}>
+                  <MenuItem id={id} onAction={() => router.push(path)}>
                     <Row alignItems="center" gap>
                       <Icon>{icon}</Icon>
                       <Text>{label}</Text>

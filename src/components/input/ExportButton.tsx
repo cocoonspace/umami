@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { Icon, Tooltip, TooltipTrigger, LoadingButton } from '@umami/react-zen';
-import { Download } from '@/components/icons';
-import { useMessages, useApi } from '@/components/hooks';
+import { Icon, LoadingButton, Tooltip, TooltipTrigger } from '@umami/react-zen';
 import { useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useApi, useMessages } from '@/components/hooks';
 import { useDateParameters } from '@/components/hooks/useDateParameters';
 import { useFilterParameters } from '@/components/hooks/useFilterParameters';
+import { Download } from '@/components/icons';
 
 export function ExportButton({ websiteId }: { websiteId: string }) {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const [isLoading, setIsLoading] = useState(false);
   const date = useDateParameters();
   const filters = useFilterParameters();
@@ -41,7 +41,7 @@ export function ExportButton({ websiteId }: { websiteId: string }) {
           <Download />
         </Icon>
       </LoadingButton>
-      <Tooltip>{formatMessage(labels.download)}</Tooltip>
+      <Tooltip>{t(labels.download)}</Tooltip>
     </TooltipTrigger>
   );
 }

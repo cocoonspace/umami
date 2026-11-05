@@ -9,18 +9,25 @@ package-lock.json
 
 # testing
 /coverage
+/playwright-report
+/test-results
 
 # next.js
+next-env.d.ts
 /.next
 /out
 
 # production
 /build
 /public/script.js
+/public/recorder.js
+/public/openapi.json
 /geo
 /dist
+/packages/*/dist
 /generated
 /src/generated
+pm2.yml
 
 # misc
 .DS_Store
@@ -30,6 +37,11 @@ package-lock.json
 *.log
 .vscode
 .tool-versions
+.claude
+.agents
+tmpclaude*
+CLAUDE.md
+nul
 
 # debug
 npm-debug.log*
@@ -43,3 +55,5 @@ yarn-error.log*
 
 *.dev.yml
 
+# api integration test runtime state
+/tests/api/.runtime

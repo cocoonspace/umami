@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react';
 import { useTheme } from '@umami/react-zen';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { Chart, type ChartProps } from '@/components/charts/Chart';
 import { ChartTooltip } from '@/components/charts/ChartTooltip';
-import { Chart, ChartProps } from '@/components/charts/Chart';
 import { useLocale } from '@/components/hooks';
 import { renderNumberLabels } from '@/lib/charts';
 import { getThemeColors } from '@/lib/colors';
-import { formatDate, DATE_FORMATS } from '@/lib/date';
+import { DATE_FORMATS, formatDate, parseBackendDate } from '@/lib/date';
 import { formatLongCurrency, formatLongNumber } from '@/lib/format';
+
+const MemoChart = memo(Chart);
 
 const dateFormats = {
   millisecond: 'T',
@@ -32,7 +34,13 @@ export interface BarChartProps extends ChartProps {
   maxDate?: Date;
 }
 
-export function BarChart({
+interface TooltipState {
+  title: string;
+  color?: string;
+  value: string;
+}
+
+function BarChartComponent({
   chartData,
   renderXLabel,
   renderYLabel,
@@ -45,14 +53,14 @@ export function BarChart({
   currency,
   ...props
 }: BarChartProps) {
-  const [tooltip, setTooltip] = useState(null);
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const { theme } = useTheme();
   const { locale } = useLocale();
   const { colors } = useMemo(() => getThemeColors(theme), [theme]);
 
   const chartOptions: any = useMemo(() => {
     return {
-      __id: new Date().getTime(),
+      __id: Date.now(),
       scales: {
         x: {
           type: XAxisType,
@@ -94,31 +102,54 @@ export function BarChart({
         },
       },
     };
-  }, [chartData, colors, unit, stacked, renderXLabel, renderYLabel]);
+  }, [
+    colors,
+    unit,
+    stacked,
+    renderXLabel,
+    renderYLabel,
+    minDate,
+    maxDate,
+    locale,
+    XAxisType,
+    YAxisType,
+  ]);
 
-  const handleTooltip = ({ tooltip }: { tooltip: any }) => {
-    const { opacity, labelColors, dataPoints } = tooltip;
-
-    setTooltip(
-      opacity
+  const handleTooltip = useCallback(
+    ({ tooltip }: { tooltip: any }) => {
+      const { opacity, labelColors, dataPoints } = tooltip;
+      const nextTooltip = opacity
         ? {
             title: formatDate(
-              new Date(dataPoints[0].raw?.d || dataPoints[0].raw?.x || dataPoints[0].raw),
+              parseBackendDate(dataPoints[0].raw?.d || dataPoints[0].raw?.x || dataPoints[0].raw),
               dateFormats[unit],
               locale,
             ),
-            color: labelColors?.[0]?.backgroundColor,
+            color: labelColors?.[0]?.borderColor || labelColors?.[0]?.backgroundColor,
             value: currency
               ? formatLongCurrency(dataPoints[0].raw.y, currency)
               : `${formatLongNumber(dataPoints[0].raw.y)} ${dataPoints[0].dataset.label}`,
           }
-        : null,
-    );
-  };
+        : null;
+
+      setTooltip(prev => {
+        if (
+          prev?.title === nextTooltip?.title &&
+          prev?.color === nextTooltip?.color &&
+          prev?.value === nextTooltip?.value
+        ) {
+          return prev;
+        }
+
+        return nextTooltip;
+      });
+    },
+    [currency, locale, unit],
+  );
 
   return (
     <>
-      <Chart
+      <MemoChart
         {...props}
         type="bar"
         chartData={chartData}
@@ -129,3 +160,7 @@ export function BarChart({
     </>
   );
 }
+
+export const BarChart = memo(BarChartComponent);
+
+BarChart.displayName = 'BarChart';

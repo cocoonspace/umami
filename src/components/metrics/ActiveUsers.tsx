@@ -1,18 +1,21 @@
+import { StatusLight, Text } from '@umami/react-zen';
 import { useMemo } from 'react';
-import { Text, StatusLight } from '@umami/react-zen';
-import { useMessages, useActyiveUsersQuery } from '@/components/hooks';
+import Link from '@/components/common/Link';
+import { useActiveUsersQuery, useMessages } from '@/components/hooks';
 
 export function ActiveUsers({
   websiteId,
   value,
   refetchInterval = 60000,
+  allowLink = true,
 }: {
   websiteId: string;
   value?: number;
   refetchInterval?: number;
+  allowLink?: boolean;
 }) {
-  const { formatMessage, labels } = useMessages();
-  const { data } = useActyiveUsersQuery(websiteId, { refetchInterval });
+  const { t, labels } = useMessages();
+  const { data } = useActiveUsersQuery(websiteId, { refetchInterval });
 
   const count = useMemo(() => {
     if (websiteId) {
@@ -26,11 +29,17 @@ export function ActiveUsers({
     return null;
   }
 
-  return (
+  const content = (
     <StatusLight variant="success">
-      <Text size="2" weight="medium">
-        {count} {formatMessage(labels.online)}
+      <Text size="sm" weight="medium">
+        {count} {t(labels.online)}
       </Text>
     </StatusLight>
   );
+
+  if (!allowLink) {
+    return content;
+  }
+
+  return <Link href={`/websites/${websiteId}/realtime`}>{content}</Link>;
 }

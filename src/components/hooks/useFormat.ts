@@ -1,12 +1,12 @@
-import { useMessages } from './useMessages';
 import { BROWSERS, OS_NAMES } from '@/lib/constants';
-import { useLocale } from './useLocale';
+import regions from '../../../public/iso-3166-2.json';
 import { useCountryNames } from './useCountryNames';
 import { useLanguageNames } from './useLanguageNames';
-import regions from '../../../public/iso-3166-2.json';
+import { useLocale } from './useLocale';
+import { useMessages } from './useMessages';
 
 export function useFormat() {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const { locale } = useLocale();
   const { countryNames } = useCountryNames(locale);
   const { languageNames } = useLanguageNames(locale);
@@ -20,7 +20,7 @@ export function useFormat() {
   };
 
   const formatDevice = (value: string): string => {
-    return formatMessage(labels[value] || labels.unknown);
+    return t(labels[value] || labels.unknown);
   };
 
   const formatCountry = (value: string): string => {

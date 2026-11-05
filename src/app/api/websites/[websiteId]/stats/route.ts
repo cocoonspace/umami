@@ -1,17 +1,15 @@
-import { z } from 'zod';
-import { parseRequest, getQueryFilters } from '@/lib/request';
-import { unauthorized, json } from '@/lib/response';
-import { canViewWebsite } from '@/permissions';
-import { dateRangeParams, filterParams } from '@/lib/schema';
-import { getWebsiteStats } from '@/queries/sql';
 import { getCompareDate } from '@/lib/date';
+import { getQueryFilters, parseRequest } from '@/lib/request';
+import { json, unauthorized } from '@/lib/response';
+import { filterParams, withDateRange } from '@/lib/schema';
+import { canViewWebsiteSection } from '@/permissions';
+import { getWebsiteStats } from '@/queries/sql';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ websiteId: string }> },
 ) {
-  const schema = z.object({
-    ...dateRangeParams,
+  const schema = withDateRange({
     ...filterParams,
   });
 
@@ -23,7 +21,7 @@ export async function GET(
 
   const { websiteId } = await params;
 
-  if (!(await canViewWebsite(auth, websiteId))) {
+  if (!(await canViewWebsiteSection(auth, websiteId, ['overview', 'compare']))) {
     return unauthorized();
   }
 
@@ -31,7 +29,11 @@ export async function GET(
 
   const data = await getWebsiteStats(websiteId, filters);
 
-  const { startDate, endDate } = getCompareDate('prev', filters.startDate, filters.endDate);
+  const { startDate, endDate } = getCompareDate(
+    filters.compare ?? 'prev',
+    filters.startDate,
+    filters.endDate,
+  );
 
   const comparison = await getWebsiteStats(websiteId, {
     ...filters,

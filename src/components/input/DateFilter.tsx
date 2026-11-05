@@ -1,12 +1,12 @@
-import { useState, Key, Fragment } from 'react';
-import { Modal, Select, ListItem, ListSeparator, Dialog, SelectProps } from '@umami/react-zen';
-import { endOfYear } from 'date-fns';
-import { DatePickerForm } from '@/components/metrics/DatePickerForm';
-import { useMessages, useMobile } from '@/components/hooks';
+import { Dialog, ListItem, ListSeparator, Modal, Select, type SelectProps } from '@umami/react-zen';
+import { Fragment, type Key, useState } from 'react';
+import { ControlledDialog } from '@/components/common/ControlledDialog';
 import { DateDisplay } from '@/components/common/DateDisplay';
-import { parseDateRange } from '@/lib/date';
+import { useMessages, useMobile } from '@/components/hooks';
+import { DatePickerForm } from '@/components/metrics/DatePickerForm';
+import { getMaxSelectableDate, parseDateRange } from '@/lib/date';
 
-export interface DateFilterProps extends SelectProps {
+export interface DateFilterProps extends Omit<SelectProps, 'value' | 'onChange'> {
   value?: string;
   onChange?: (value: string) => void;
   showAllTime?: boolean;
@@ -22,56 +22,56 @@ export function DateFilter({
   placement = 'bottom',
   ...props
 }: DateFilterProps) {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const [showPicker, setShowPicker] = useState(false);
   const { startDate, endDate } = parseDateRange(value) || {};
   const { isMobile } = useMobile();
 
   const options = [
-    { label: formatMessage(labels.today), value: '0day' },
+    { label: t(labels.today), value: '0day' },
     {
-      label: formatMessage(labels.lastHours, { x: '24' }),
+      label: t(labels.lastHours, { x: '24' }),
       value: '24hour',
     },
     {
-      label: formatMessage(labels.thisWeek),
+      label: t(labels.thisWeek),
       value: '0week',
       divider: true,
     },
     {
-      label: formatMessage(labels.lastDays, { x: '7' }),
+      label: t(labels.lastDays, { x: '7' }),
       value: '7day',
     },
     {
-      label: formatMessage(labels.thisMonth),
+      label: t(labels.thisMonth),
       value: '0month',
       divider: true,
     },
     {
-      label: formatMessage(labels.lastDays, { x: '30' }),
+      label: t(labels.lastDays, { x: '30' }),
       value: '30day',
     },
     {
-      label: formatMessage(labels.lastDays, { x: '90' }),
+      label: t(labels.lastDays, { x: '90' }),
       value: '90day',
     },
-    { label: formatMessage(labels.thisYear), value: '0year' },
+    { label: t(labels.thisYear), value: '0year' },
     {
-      label: formatMessage(labels.lastMonths, { x: '6' }),
+      label: t(labels.lastMonths, { x: '6' }),
       value: '6month',
       divider: true,
     },
     {
-      label: formatMessage(labels.lastMonths, { x: '12' }),
+      label: t(labels.lastMonths, { x: '12' }),
       value: '12month',
     },
     showAllTime && {
-      label: formatMessage(labels.allTime),
+      label: t(labels.allTime),
       value: 'all',
       divider: true,
     },
     {
-      label: formatMessage(labels.customRange),
+      label: t(labels.customRange),
       value: 'custom',
       divider: true,
     },
@@ -102,15 +102,33 @@ export function DateFilter({
 
   const selectedValue = value.endsWith(':all') ? 'all' : value;
 
+  const [side, align] = String(placement).split(' ');
+
   return (
     <>
       <Select
         {...props}
         value={selectedValue}
-        placeholder={formatMessage(labels.selectDate)}
+        placeholder={t(labels.selectDate)}
         onChange={handleChange}
         renderValue={renderValue}
-        popoverProps={{ placement }}
+        popoverProps={{
+          side: side as any,
+          align: (align === 'top' ? 'start' : align === 'bottom' ? 'end' : align) as any,
+          style: isMobile
+            ? {
+                // Base UI's positioned wrapper contains React Zen's fullscreen popup.
+                position: 'fixed',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                width: '100vw',
+                height: '100dvh',
+                transform: 'none',
+              }
+            : { minWidth: 200 },
+        }}
         isFullscreen={isMobile}
       >
         {options.map(({ label, value, divider }: any) => {
@@ -123,18 +141,20 @@ export function DateFilter({
         })}
       </Select>
       {showPicker && (
-        <Modal isOpen={true}>
-          <Dialog>
-            <DatePickerForm
-              startDate={startDate}
-              endDate={endDate}
-              minDate={new Date(2000, 0, 1)}
-              maxDate={endOfYear(new Date())}
-              onChange={handlePickerChange}
-              onClose={() => setShowPicker(false)}
-            />
-          </Dialog>
-        </Modal>
+        <ControlledDialog>
+          <Modal isOpen={true}>
+            <Dialog>
+              <DatePickerForm
+                startDate={startDate}
+                endDate={endDate}
+                minDate={new Date(2000, 0, 1)}
+                maxDate={getMaxSelectableDate()}
+                onChange={handlePickerChange}
+                onClose={() => setShowPicker(false)}
+              />
+            </Dialog>
+          </Modal>
+        </ControlledDialog>
       )}
     </>
   );

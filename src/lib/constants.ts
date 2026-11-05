@@ -4,10 +4,15 @@ export const LOCALE_CONFIG = 'umami.locale';
 export const TIMEZONE_CONFIG = 'umami.timezone';
 export const DATE_RANGE_CONFIG = 'umami.date-range';
 export const THEME_CONFIG = 'umami.theme';
+export const CURRENCY_CONFIG = 'umami.currency';
 export const DASHBOARD_CONFIG = 'umami.dashboard';
 export const LAST_TEAM_CONFIG = 'umami.last-team';
 export const VERSION_CHECK = 'umami.version-check';
 export const SHARE_TOKEN_HEADER = 'x-umami-share-token';
+export const SHARE_CONTEXT_HEADER = 'x-umami-share-context';
+export const SHARE_TOKEN_TYPE = 'share';
+export const CACHE_TOKEN_TYPE = 'cache';
+export const PARTIAL_AUTH_TOKEN_TYPE = 'partial-auth';
 export const HOMEPAGE_URL = 'https://umami.is';
 export const DOCS_URL = 'https://umami.is/docs';
 export const REPO_URL = 'https://github.com/umami-software/umami';
@@ -24,7 +29,9 @@ export const DEFAULT_DATE_RANGE_VALUE = '24hour';
 export const DEFAULT_WEBSITE_LIMIT = 10;
 export const DEFAULT_RESET_DATE = '2000-01-01';
 export const DEFAULT_PAGE_SIZE = 20;
+export const MAX_PAGING_RESULTS = 10000;
 export const DEFAULT_DATE_COMPARE = 'prev';
+export const DEFAULT_CURRENCY = 'USD';
 
 export const REALTIME_RANGE = 30;
 export const REALTIME_INTERVAL = 10000;
@@ -33,6 +40,7 @@ export const UNIT_TYPES = ['year', 'month', 'hour', 'day', 'minute'];
 
 export const EVENT_COLUMNS = [
   'path',
+  'fullPath',
   'entry',
   'exit',
   'referrer',
@@ -42,6 +50,11 @@ export const EVENT_COLUMNS = [
   'event',
   'tag',
   'hostname',
+  'utmSource',
+  'utmMedium',
+  'utmCampaign',
+  'utmContent',
+  'utmTerm',
 ];
 
 export const SESSION_COLUMNS = [
@@ -53,6 +66,7 @@ export const SESSION_COLUMNS = [
   'country',
   'city',
   'region',
+  'distinctId',
 ];
 
 export const SEGMENT_TYPES = {
@@ -67,6 +81,7 @@ export const FILTER_COLUMNS = {
   referrer: 'referrer_domain',
   domain: 'referrer_domain',
   hostname: 'hostname',
+  distinctId: 'distinct_id',
   title: 'page_title',
   query: 'url_query',
   os: 'os',
@@ -79,11 +94,26 @@ export const FILTER_COLUMNS = {
   event: 'event_name',
   tag: 'tag',
   eventType: 'event_type',
+  utmSource: 'utm_source',
+  utmMedium: 'utm_medium',
+  utmCampaign: 'utm_campaign',
+  utmContent: 'utm_content',
+  utmTerm: 'utm_term',
 };
 
 export const COLLECTION_TYPE = {
   event: 'event',
   identify: 'identify',
+  performance: 'performance',
+  record: 'record',
+} as const;
+
+export const WEB_VITALS_THRESHOLDS = {
+  lcp: { good: 2500, poor: 4000, unit: 'ms' },
+  inp: { good: 200, poor: 500, unit: 'ms' },
+  cls: { good: 0.1, poor: 0.25, unit: '' },
+  fcp: { good: 1800, poor: 3000, unit: 'ms' },
+  ttfb: { good: 800, poor: 1800, unit: 'ms' },
 } as const;
 
 export const EVENT_TYPE = {
@@ -91,6 +121,19 @@ export const EVENT_TYPE = {
   customEvent: 2,
   linkEvent: 3,
   pixelEvent: 4,
+  performance: 5,
+} as const;
+
+export const HEATMAP_EVENT_TYPE = {
+  click: 1,
+  scroll: 2,
+} as const;
+
+export const ENTITY_TYPE = {
+  website: 1,
+  link: 2,
+  pixel: 3,
+  board: 4,
 } as const;
 
 export const DATA_TYPE = {
@@ -108,6 +151,8 @@ export const OPERATORS = {
   notSet: 'ns',
   contains: 'c',
   doesNotContain: 'dnc',
+  regex: 're',
+  notRegex: 'nre',
   true: 't',
   false: 'f',
   greaterThan: 'gt',
@@ -134,6 +179,13 @@ export const ROLES = {
   teamManager: 'team-manager',
   teamMember: 'team-member',
   teamViewOnly: 'team-view-only',
+} as const;
+
+export const TEAM_ROLE_RANK: Record<string, number> = {
+  [ROLES.teamViewOnly]: 0,
+  [ROLES.teamMember]: 1,
+  [ROLES.teamManager]: 2,
+  [ROLES.teamOwner]: 3,
 } as const;
 
 export const PERMISSIONS = {
@@ -215,11 +267,28 @@ export const DOMAIN_REGEX =
   /^(localhost(:[1-9]\d{0,4})?|((?=[a-z0-9-_]{1,63}\.)(xn--)?[a-z0-9-_]+(-[a-z0-9-_]+)*\.)+(xn--)?[a-z0-9-_]{2,63})$/;
 export const SHARE_ID_REGEX = /^[a-zA-Z0-9]{8,50}$/;
 export const DATETIME_REGEX =
-  /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{3}(Z|\+[0-9]{2}:[0-9]{2})?)?$/;
+  /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{3})?(Z|\+[0-9]{2}:[0-9]{2})?$/;
 
-export const URL_LENGTH = 500;
-export const PAGE_TITLE_LENGTH = 500;
-export const EVENT_NAME_LENGTH = 50;
+export const FIELD_LENGTH = {
+  browser: 20,
+  os: 20,
+  device: 20,
+  screen: 11,
+  language: 35,
+  country: 2,
+  region: 20,
+  city: 50,
+  distinctId: 50,
+  url: 500,
+  pageTitle: 500,
+  eventName: 50,
+  tag: 50,
+  hostname: 100,
+  fieldValue: 255,
+  dataKey: 500,
+  stringValue: 500,
+  currency: 10,
+} as const;
 
 export const UTM_PARAMS = ['utm_campaign', 'utm_content', 'utm_medium', 'utm_source', 'utm_term'];
 
@@ -236,6 +305,7 @@ export const BROWSERS = {
   aol: 'AOL',
   bb10: 'BlackBerry 10',
   beaker: 'Beaker',
+  browser: 'Unknown',
   chrome: 'Chrome',
   'chromium-webview': 'Chrome (webview)',
   crios: 'Chrome (iOS)',
@@ -283,14 +353,21 @@ export const SOCIAL_DOMAINS = [
 export const SEARCH_DOMAINS = [
   'baidu.com',
   'bing.com',
-  'chatgpt.com',
   'duckduckgo.com',
   'ecosia.org',
   'google.',
   'msn.com',
-  'perplexity.ai',
   'search.brave.com',
   'yandex.',
+];
+
+export const LLM_DOMAINS = [
+  'chatgpt.com',
+  'claude.ai',
+  'copilot.microsoft.com',
+  'gemini.google.com',
+  'meta.ai',
+  'perplexity.ai',
 ];
 
 export const SHOPPING_DOMAINS = [
@@ -321,7 +398,6 @@ export const PAID_AD_PARAMS = [
   'aid=',
   'dclid=',
   'epik=',
-  'fbclid=',
   'gclid=',
   'li_fat_id=',
   'msclkid=',
@@ -622,6 +698,7 @@ export const CURRENCIES = [
   { id: 'PLN', name: 'Polish Złoty' },
   { id: 'NOK', name: 'Norwegian Krone' },
   { id: 'DKK', name: 'Danish Krone' },
+  { id: 'ISK', name: 'Icelandic Króna' },
   { id: 'NZD', name: 'New Zealand Dollar' },
   { id: 'ZAR', name: 'South African Rand' },
   { id: 'MXN', name: 'Mexican Peso' },
@@ -630,6 +707,7 @@ export const CURRENCIES = [
   { id: 'MYR', name: 'Malaysian Ringgit' },
   { id: 'INR', name: 'Indian Rupee' },
   { id: 'KRW', name: 'South Korean Won' },
+  { id: 'TWD', name: 'New Taiwan Dollar' },
   { id: 'BRL', name: 'Brazilian Real' },
   { id: 'TRY', name: 'Turkish Lira' },
   { id: 'CZK', name: 'Czech Koruna' },
@@ -658,6 +736,7 @@ export const CURRENCIES = [
   { id: 'TND', name: 'Tunisian Dinar' },
   { id: 'OMR', name: 'Omani Rial' },
   { id: 'GHS', name: 'Ghanaian Cedi' },
+  { id: 'IRR', name: 'Iranian Rial' },
 ];
 
 export const TIMEZONE_LEGACY: Record<string, string> = {

@@ -1,22 +1,28 @@
-import Link from 'next/link';
+import { Row } from '@umami/react-zen';
+import { IconLabel } from '@/components/common/IconLabel';
+import Link from '@/components/common/Link';
 import { PageHeader } from '@/components/common/PageHeader';
-import { Globe, ArrowLeft } from '@/components/icons';
 import { useMessages, useNavigation, useWebsite } from '@/components/hooks';
-import { IconLabel, Row } from '@umami/react-zen';
+import { ArrowLeft, Globe } from '@/components/icons';
+import { decodePunycodeDomain } from '@/lib/format';
 
 export function WebsiteSettingsHeader() {
   const website = useWebsite();
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const { renderUrl } = useNavigation();
 
   return (
     <>
       <Row marginTop="6">
         <Link href={renderUrl(`/websites/${website.id}`)}>
-          <IconLabel icon={<ArrowLeft />} label={formatMessage(labels.website)} />
+          <IconLabel icon={<ArrowLeft />} label={t(labels.website)} />
         </Link>
       </Row>
-      <PageHeader title={website?.name} description={website?.domain} icon={<Globe />} />
+      <PageHeader
+        title={website?.name}
+        description={decodePunycodeDomain(website?.domain)}
+        icon={<Globe />}
+      />
     </>
   );
 }

@@ -1,5 +1,5 @@
-import { useDeleteQuery, useMessages } from '@/components/hooks';
 import { TypeConfirmationForm } from '@/components/common/TypeConfirmationForm';
+import { useDeleteQuery, useMessages } from '@/components/hooks';
 
 const CONFIRM_VALUE = 'DELETE';
 
@@ -12,7 +12,7 @@ export function WebsiteDeleteForm({
   onSave?: () => void;
   onClose?: () => void;
 }) {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const { mutateAsync, isPending, error, touch } = useDeleteQuery(`/websites/${websiteId}`);
 
   const handleConfirm = async () => {
@@ -33,7 +33,7 @@ export function WebsiteDeleteForm({
       onClose={onClose}
       isLoading={isPending}
       error={error}
-      buttonLabel={formatMessage(labels.delete)}
+      buttonLabel={t(labels.delete)}
       buttonVariant="danger"
     />
   );

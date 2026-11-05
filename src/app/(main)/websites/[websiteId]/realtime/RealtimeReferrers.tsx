@@ -1,11 +1,11 @@
-import thenby from 'thenby';
-import { percentFilter } from '@/lib/filters';
-import { ListTable } from '@/components/metrics/ListTable';
 import { useMessages, useWebsite } from '@/components/hooks';
+import { ListTable } from '@/components/metrics/ListTable';
+import { percentFilter } from '@/lib/filters';
+import { firstBy } from 'thenby';
 
 export function RealtimeReferrers({ data }: { data: any }) {
   const website = useWebsite();
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const { referrers } = data || {};
   const limit = 15;
 
@@ -26,14 +26,14 @@ export function RealtimeReferrers({ data }: { data: any }) {
           y: referrers[key],
         };
       })
-      .sort(thenby.firstBy('y', -1))
+      .sort(firstBy('y', -1))
       .slice(0, limit),
   );
 
   return (
     <ListTable
-      title={formatMessage(labels.referrers)}
-      metric={formatMessage(labels.views)}
+      title={t(labels.referrers)}
+      metric={t(labels.views)}
       renderLabel={renderLink}
       data={domains.map(({ x, y, z }: { x: string; y: number; z: number }) => ({
         label: x,

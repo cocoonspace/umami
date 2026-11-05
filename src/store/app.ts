@@ -8,14 +8,15 @@ import {
   THEME_CONFIG,
   TIMEZONE_CONFIG,
 } from '@/lib/constants';
-import { getItem } from '@/lib/storage';
 import { getTimezone } from '@/lib/date';
+import { getItem } from '@/lib/storage';
 
 const initialState = {
   locale: getItem(LOCALE_CONFIG) || process.env.defaultLocale || DEFAULT_LOCALE,
   theme: getItem(THEME_CONFIG) || DEFAULT_THEME,
   timezone: getItem(TIMEZONE_CONFIG) || getTimezone(),
   dateRangeValue: getItem(DATE_RANGE_CONFIG) || DEFAULT_DATE_RANGE_VALUE,
+  share: null,
   shareToken: null,
   user: null,
   config: null,
@@ -31,8 +32,8 @@ export function setLocale(locale: string) {
   store.setState({ locale });
 }
 
-export function setShareToken(shareToken: string) {
-  store.setState({ shareToken });
+export function setShareData(share: object | null, shareToken: { token?: string } | null) {
+  store.setState({ share, shareToken });
 }
 
 export function setUser(user: object) {

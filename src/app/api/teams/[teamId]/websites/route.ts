@@ -1,14 +1,15 @@
 import { z } from 'zod';
-import { unauthorized, json } from '@/lib/response';
-import { canViewTeam } from '@/permissions';
 import { getQueryFilters, parseRequest } from '@/lib/request';
-import { pagingParams, searchParams } from '@/lib/schema';
+import { json, unauthorized } from '@/lib/response';
+import { pagingParams, searchParams, sortingParams } from '@/lib/schema';
+import { canViewTeam } from '@/permissions';
 import { getTeamWebsites } from '@/queries/prisma';
 
 export async function GET(request: Request, { params }: { params: Promise<{ teamId: string }> }) {
   const schema = z.object({
     ...pagingParams,
     ...searchParams,
+    ...sortingParams,
   });
   const { teamId } = await params;
   const { auth, query, error } = await parseRequest(request, schema);

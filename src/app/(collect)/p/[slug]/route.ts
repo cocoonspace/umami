@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { notFound } from '@/lib/response';
-import redis from '@/lib/redis';
-import { findPixel } from '@/queries/prisma';
-import { Pixel } from '@/generated/prisma/client';
 import { POST } from '@/app/api/send/route';
+import type { Pixel } from '@/generated/prisma/client';
+import redis from '@/lib/redis';
+import { notFound } from '@/lib/response';
+import { findPixel } from '@/queries/prisma';
 
 const image = Buffer.from('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw', 'base64');
 
@@ -21,6 +21,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
         return findPixel({
           where: {
             slug,
+            deletedAt: null,
           },
         });
       },
@@ -34,6 +35,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     pixel = await findPixel({
       where: {
         slug,
+        deletedAt: null,
       },
     });
 
@@ -47,7 +49,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     payload: {
       pixel: pixel.id,
       url: request.url,
-      referrer: request.headers.get('referer'),
+      referrer: request.headers.get('referer') || undefined,
     },
   };
 
@@ -63,6 +65,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     headers: {
       'Content-Type': 'image/gif',
       'Content-Length': image.length.toString(),
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
     },
   });
 }

@@ -1,41 +1,45 @@
-import { Tabs, TabList, Tab, Icon, Text, Row } from '@umami/react-zen';
+import { Icon, Row, Tab, TabList, Tabs, Text } from '@umami/react-zen';
 import { useMessages, useNavigation, useWebsite } from '@/components/hooks';
-import { Clock, Eye, User, ChartPie } from '@/components/icons';
+import { ChartPie, Clock, Eye, User } from '@/components/icons';
 import { Lightning } from '@/components/svg';
 
 export function WebsiteTabs() {
   const website = useWebsite();
   const { pathname, renderUrl } = useNavigation();
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
+  const resetParams = {
+    search: undefined,
+    page: undefined,
+  };
 
   const links = [
     {
       id: 'overview',
-      label: formatMessage(labels.overview),
+      label: t(labels.overview),
       icon: <Eye />,
       path: '',
     },
     {
       id: 'events',
-      label: formatMessage(labels.events),
+      label: t(labels.events),
       icon: <Lightning />,
       path: '/events',
     },
     {
       id: 'sessions',
-      label: formatMessage(labels.sessions),
+      label: t(labels.sessions),
       icon: <User />,
       path: '/sessions',
     },
     {
       id: 'realtime',
-      label: formatMessage(labels.realtime),
+      label: t(labels.realtime),
       icon: <Clock />,
       path: '/realtime',
     },
     {
       id: 'reports',
-      label: formatMessage(labels.reports),
+      label: t(labels.reports),
       icon: <ChartPie />,
       path: '/reports',
     },
@@ -49,7 +53,7 @@ export function WebsiteTabs() {
         <TabList>
           {links.map(({ id, label, icon, path }) => {
             return (
-              <Tab key={id} id={id} href={renderUrl(`/websites/${website.id}${path}`)}>
+              <Tab key={id} id={id} href={renderUrl(`/websites/${website.id}${path}`, resetParams)}>
                 <Row alignItems="center" gap>
                   <Icon>{icon}</Icon>
                   <Text>{label}</Text>

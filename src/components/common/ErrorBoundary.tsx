@@ -1,15 +1,15 @@
-import { ErrorInfo, ReactNode } from 'react';
-import { ErrorBoundary as Boundary } from 'react-error-boundary';
 import { Button, Column } from '@umami/react-zen';
+import type { ErrorInfo, ReactNode } from 'react';
+import { ErrorBoundary as Boundary } from 'react-error-boundary';
 import { useMessages } from '@/components/hooks';
 
-const logError = (error: Error, info: ErrorInfo) => {
+const logError = (error: unknown, info: ErrorInfo) => {
   // eslint-disable-next-line no-console
-  console.error(error, info.componentStack);
+  console.error(error instanceof Error ? error : new Error(String(error)), info.componentStack);
 };
 
 export function ErrorBoundary({ children }: { children: ReactNode }) {
-  const { formatMessage, messages } = useMessages();
+  const { t, messages } = useMessages();
 
   const fallbackRender = ({ error, resetErrorBoundary }) => {
     return (
@@ -22,7 +22,7 @@ export function ErrorBoundary({ children }: { children: ReactNode }) {
         justifyContent="center"
         alignItems="center"
       >
-        <h1>{formatMessage(messages.error)}</h1>
+        <h1>{t(messages.error)}</h1>
         <h3>{error.message}</h3>
         <pre>{error.stack}</pre>
         <Button onClick={resetErrorBoundary}>OK</Button>

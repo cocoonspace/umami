@@ -1,21 +1,18 @@
-import { z } from 'zod';
-import { createSecureToken } from '@/lib/jwt';
-import redis from '@/lib/redis';
-import { getUserByUsername } from '@/queries/prisma';
-import { json, unauthorized } from '@/lib/response';
-import { parseRequest } from '@/lib/request';
 import { saveAuth } from '@/lib/auth';
+import { PARTIAL_AUTH_TOKEN_TYPE, ROLES } from '@/lib/constants';
+import { hash, secret } from '@/lib/crypto';
+import { createSecureToken } from '@/lib/jwt';
 import { checkPassword } from '@/lib/password';
-import { secret } from '@/lib/crypto';
-import { ROLES } from '@/lib/constants';
+import prisma from '@/lib/prisma';
+import redis from '@/lib/redis';
+import { parseRequest } from '@/lib/request';
+import { json, serviceUnavailable, unauthorized } from '@/lib/response';
+import { getTwoFactorConfigurationError, isTwoFactorConfigured } from '@/lib/two-factor/crypto';
+import { getAllUserTeams, getUserByUsername } from '@/queries/prisma';
+import { loginRequestSchema } from './schema';
 
 export async function POST(request: Request) {
-  const schema = z.object({
-    username: z.string(),
-    password: z.string(),
-  });
-
-  const { body, error } = await parseRequest(request, schema, { skipAuth: true });
+  const { body, error } = await parseRequest(request, loginRequestSchema, { skipAuth: true });
 
   if (error) {
     return error();
@@ -30,17 +27,42 @@ export async function POST(request: Request) {
   }
 
   const { id, role, createdAt } = user;
+  const cloudMode = !!process.env.CLOUD_MODE;
+
+  // Check if 2FA is enabled for this user
+  const twoFactor = !cloudMode
+    ? await prisma.client.twoFactorAuth.findUnique({ where: { userId: id } })
+    : null;
+
+  if (twoFactor?.isEnabled) {
+    if (!isTwoFactorConfigured()) {
+      return serviceUnavailable(getTwoFactorConfigurationError());
+    }
+
+    const partialToken = createSecureToken(
+      { userId: id, type: PARTIAL_AUTH_TOKEN_TYPE },
+      secret(),
+      {
+        expiresIn: '5m',
+      },
+    );
+    return json({ requiresTwoFactor: true, partialToken });
+  }
+  // Bind token to password hash so a password change invalidates old tokens.
+  const pwd = hash(user.password);
 
   let token: string;
 
   if (redis.enabled) {
-    token = await saveAuth({ userId: id, role });
+    token = await saveAuth({ userId: id, role, pwd });
   } else {
-    token = createSecureToken({ userId: user.id, role }, secret());
+    token = createSecureToken({ userId: user.id, role, pwd }, secret());
   }
+
+  const teams = await getAllUserTeams(id);
 
   return json({
     token,
-    user: { id, username, role, createdAt, isAdmin: role === ROLES.admin },
+    user: { id, username, role, createdAt, isAdmin: role === ROLES.admin, teams },
   });
 }

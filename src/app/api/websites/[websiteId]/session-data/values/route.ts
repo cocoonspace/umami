@@ -1,9 +1,9 @@
-import { canViewWebsite } from '@/permissions';
+import { z } from 'zod';
 import { getQueryFilters, parseRequest } from '@/lib/request';
 import { json, unauthorized } from '@/lib/response';
-import { getSessionDataValues } from '@/queries/sql';
-import { z } from 'zod';
 import { filterParams } from '@/lib/schema';
+import { canViewWebsiteSection } from '@/permissions';
+import { getSessionDataValues } from '@/queries/sql';
 
 export async function GET(
   request: Request,
@@ -13,6 +13,7 @@ export async function GET(
     startAt: z.coerce.number().int(),
     endAt: z.coerce.number().int(),
     propertyName: z.string().optional(),
+    dataType: z.coerce.number().int().optional(),
     ...filterParams,
   });
 
@@ -24,16 +25,17 @@ export async function GET(
 
   const { websiteId } = await params;
 
-  if (!(await canViewWebsite(auth, websiteId))) {
+  if (!(await canViewWebsiteSection(auth, websiteId, 'sessions'))) {
     return unauthorized();
   }
 
-  const { propertyName } = query;
+  const { propertyName, dataType } = query;
   const filters = await getQueryFilters(query, websiteId);
 
   const data = await getSessionDataValues(websiteId, {
     ...filters,
     propertyName,
+    dataType,
   });
 
   return json(data);

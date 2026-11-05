@@ -1,21 +1,38 @@
-import { useState } from 'react';
-import { Grid, Column, TextField, Label, Select, Icon, Button, ListItem } from '@umami/react-zen';
+import {
+  Button,
+  Column,
+  Grid,
+  Icon,
+  Label,
+  ListItem,
+  Loading,
+  Select,
+  TextField,
+} from '@umami/react-zen';
+import { useEffect, useState } from 'react';
+import { Empty } from '@/components/common/Empty';
+import { MultiSelect, MultiSelectItem } from '@/components/common/MultiSelect';
 import { useFilters, useFormat, useWebsiteValuesQuery } from '@/components/hooks';
 import { X } from '@/components/icons';
 import { isSearchOperator } from '@/lib/params';
-import { Empty } from '@/components/common/Empty';
 
 export interface FilterRecordProps {
-  websiteId: string;
+  websiteId?: string;
   type: string;
   startDate: Date;
   endDate: Date;
   name: string;
   operator: string;
-  value: string;
+  value: string | string[];
   onSelect?: (name: string, value: any) => void;
   onRemove?: (name: string) => void;
   onChange?: (name: string, value: string) => void;
+}
+
+function getSelectedValues(value: string | string[], operator: string) {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+  return isSearchOperator(operator) ? [value] : value.split(',');
 }
 
 export function FilterRecord({
@@ -31,7 +48,8 @@ export function FilterRecord({
   onChange,
 }: FilterRecordProps) {
   const { fields, operators } = useFilters();
-  const [selected, setSelected] = useState(value);
+  const isSearch = isSearchOperator(operator);
+  const [selected, setSelected] = useState<string[]>(() => getSelectedValues(value, operator));
   const [search, setSearch] = useState('');
   const { formatValue } = useFormat();
   const { data, isLoading } = useWebsiteValuesQuery({
@@ -41,8 +59,11 @@ export function FilterRecord({
     startDate,
     endDate,
   });
-  const isSearch = isSearchOperator(operator);
   const items = data?.filter(({ value }) => value) || [];
+
+  useEffect(() => {
+    setSelected(getSelectedValues(value, operator));
+  }, [operator, value]);
 
   const handleSearch = (value: string) => {
     setSearch(value);
@@ -53,55 +74,54 @@ export function FilterRecord({
   };
 
   const handleSelectValue = (value: string) => {
-    setSelected(value);
+    setSelected([value]);
     onChange?.(name, value);
   };
 
-  const renderValue = () => {
-    return formatValue(selected, type);
+  const handleMultiSelectValue = (values: string[]) => {
+    setSelected(values);
+    onChange?.(name, values.join(','));
   };
 
   return (
-    <Column>
+    <Column gap="1">
       <Label>{fields.find(f => f.name === name)?.label}</Label>
       <Grid columns="1fr auto" gap>
-        <Grid columns={{ xs: '1fr', md: '200px 1fr' }} gap>
-          <Select
-            items={operators.filter(({ type }) => type === 'string')}
-            value={operator}
-            onChange={handleSelectOperator}
-          >
-            {({ name, label }: any) => {
-              return (
+        <Grid columns={{ base: '1fr', md: '200px 1fr' }} gap>
+          <Select value={operator} onChange={handleSelectOperator}>
+            {operators
+              .filter(({ type }) => type === 'string')
+              .map(({ name, label }: any) => (
                 <ListItem key={name} id={name}>
                   {label}
                 </ListItem>
-              );
-            }}
+              ))}
           </Select>
           {isSearch && (
-            <TextField value={selected} defaultValue={selected} onChange={handleSelectValue} />
+            <TextField
+              value={selected[0] || ''}
+              defaultValue={selected[0] || ''}
+              onChange={handleSelectValue}
+            />
           )}
           {!isSearch && (
-            <Select
-              items={items}
+            <MultiSelect
               value={selected}
-              onChange={handleSelectValue}
+              onChange={handleMultiSelectValue}
               searchValue={search}
-              renderValue={renderValue}
               onSearch={handleSearch}
-              isLoading={isLoading}
-              listProps={{ renderEmptyState: () => <Empty /> }}
+              renderValue={values =>
+                values.length > 0 ? values.map(v => formatValue(v, type)).join(', ') : undefined
+              }
+              renderEmptyState={() => (isLoading ? <Loading icon="dots" /> : <Empty />)}
               allowSearch
             >
-              {items?.map(({ value }) => {
-                return (
-                  <ListItem key={value} id={value}>
-                    {formatValue(value, type)}
-                  </ListItem>
-                );
-              })}
-            </Select>
+              {items.map(({ value }) => (
+                <MultiSelectItem key={value} value={value}>
+                  {formatValue(value, type)}
+                </MultiSelectItem>
+              ))}
+            </MultiSelect>
           )}
         </Grid>
         <Column justifyContent="flex-start">

@@ -1,15 +1,19 @@
 import { z } from 'zod';
-import { getRandomChars } from '@/lib/generate';
-import { unauthorized, json } from '@/lib/response';
-import { canCreateTeam } from '@/permissions';
 import { uuid } from '@/lib/crypto';
+import { getRandomChars } from '@/lib/generate';
+import { fetchAccount } from '@/lib/load';
+import redis from '@/lib/redis';
 import { getQueryFilters, parseRequest } from '@/lib/request';
-import { createTeam, getUserTeams } from '@/queries/prisma';
-import { pagingParams } from '@/lib/schema';
+import { json, unauthorized } from '@/lib/response';
+import { pagingParams, sortingParams } from '@/lib/schema';
+import { getCloudTeamLimit } from '@/lib/subscription';
+import { canCreateTeam } from '@/permissions';
+import { createTeam, getUserOwnedTeamCount, getUserTeams } from '@/queries/prisma';
 
 export async function GET(request: Request) {
   const schema = z.object({
     ...pagingParams,
+    ...sortingParams,
   });
 
   const { auth, query, error } = await parseRequest(request, schema);
@@ -28,6 +32,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const schema = z.object({
     name: z.string().max(50),
+    ownerId: z.uuid().optional(),
   });
 
   const { auth, body, error } = await parseRequest(request, schema);
@@ -40,16 +45,50 @@ export async function POST(request: Request) {
     return unauthorized();
   }
 
-  const { name } = body;
+  const { name, ownerId } = body;
+
+  const teamId = uuid();
+  const teamOwnerId = ownerId && auth.user.isAdmin ? ownerId : auth.user.id;
+
+  let account = null;
+
+  if (process.env.CLOUD_MODE) {
+    account = await fetchAccount(teamOwnerId);
+
+    const teamLimit = getCloudTeamLimit(account);
+
+    if (teamLimit !== null) {
+      const count = await getUserOwnedTeamCount(teamOwnerId);
+
+      if (count >= teamLimit) {
+        return unauthorized({ message: 'Team limit reached.' });
+      }
+    }
+  }
 
   const team = await createTeam(
     {
-      id: uuid(),
+      id: teamId,
       name,
       accessCode: `team_${getRandomChars(16)}`,
     },
-    auth.user.id,
+    teamOwnerId,
   );
+
+  if (process.env.CLOUD_MODE && redis.enabled && account) {
+    await redis.client.set(
+      `team:${teamId}`,
+      {
+        teamOwnerId,
+        isPro: account.isPro || false,
+        isBusiness: account.isBusiness || false,
+        isNoBilling: account.isNoBilling || false,
+        hasSubscription: account.hasSubscription || false,
+        unlimitedWebsites: account.unlimitedWebsites || false,
+      },
+      60 * 60 * 24 * 90,
+    );
+  }
 
   return json(team);
 }

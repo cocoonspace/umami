@@ -1,17 +1,14 @@
 import { getQueryFilters, parseRequest } from '@/lib/request';
 import { json, unauthorized } from '@/lib/response';
-import { filterParams, pagingParams, searchParams } from '@/lib/schema';
-import { canViewWebsite } from '@/permissions';
+import { filterParams, pagingParams, searchParams, withDateRange } from '@/lib/schema';
+import { canViewWebsiteSection } from '@/permissions';
 import { getWebsiteEvents } from '@/queries/sql';
-import { z } from 'zod';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ websiteId: string }> },
 ) {
-  const schema = z.object({
-    startAt: z.coerce.number().optional(),
-    endAt: z.coerce.number().optional(),
+  const schema = withDateRange({
     ...filterParams,
     ...pagingParams,
     ...searchParams,
@@ -25,7 +22,7 @@ export async function GET(
 
   const { websiteId } = await params;
 
-  if (!(await canViewWebsite(auth, websiteId))) {
+  if (!(await canViewWebsiteSection(auth, websiteId, 'events'))) {
     return unauthorized();
   }
 

@@ -1,19 +1,17 @@
-import { canViewWebsite } from '@/permissions';
 import { EVENT_COLUMNS, FILTER_COLUMNS, SEGMENT_TYPES, SESSION_COLUMNS } from '@/lib/constants';
 import { getQueryFilters, parseRequest } from '@/lib/request';
 import { badRequest, json, unauthorized } from '@/lib/response';
-import { getValues } from '@/queries/sql';
+import { fieldsParam, searchParams, withDateRange } from '@/lib/schema';
+import { canViewWebsiteSection } from '@/permissions';
 import { getWebsiteSegments } from '@/queries/prisma';
-import { z } from 'zod';
-import { dateRangeParams, fieldsParam, searchParams } from '@/lib/schema';
+import { getValues } from '@/queries/sql';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ websiteId: string }> },
 ) {
-  const schema = z.object({
+  const schema = withDateRange({
     type: fieldsParam,
-    ...dateRangeParams,
     ...searchParams,
   });
 
@@ -25,7 +23,17 @@ export async function GET(
 
   const { websiteId } = await params;
 
-  if (!(await canViewWebsite(auth, websiteId))) {
+  if (
+    !(await canViewWebsiteSection(auth, websiteId, [
+      'overview',
+      'events',
+      'sessions',
+      'compare',
+      'breakdown',
+      'utm',
+      'attribution',
+    ]))
+  ) {
     return unauthorized();
   }
 
@@ -46,5 +54,5 @@ export async function GET(
     values = await getValues(websiteId, FILTER_COLUMNS[type], filters);
   }
 
-  return json(values.filter(n => n).sort());
+  return json(values.filter(n => n?.value != null).sort());
 }

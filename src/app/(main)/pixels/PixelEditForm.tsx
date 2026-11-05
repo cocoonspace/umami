@@ -1,22 +1,21 @@
 import {
+  Button,
+  Column,
   Form,
   FormField,
   FormSubmitButton,
+  Icon,
+  Label,
+  Loading,
   Row,
   TextField,
-  Button,
-  Label,
-  Column,
-  Icon,
-  Loading,
 } from '@umami/react-zen';
-import { useConfig, usePixelQuery } from '@/components/hooks';
-import { useMessages } from '@/components/hooks';
-import { RefreshCw } from '@/components/icons';
-import { getRandomChars } from '@/lib/generate';
-import { useUpdateQuery } from '@/components/hooks/queries/useUpdateQuery';
 import { useEffect, useState } from 'react';
+import { useConfig, useMessages, usePixelQuery } from '@/components/hooks';
+import { useUpdateQuery } from '@/components/hooks/queries/useUpdateQuery';
+import { RefreshCw } from '@/components/icons';
 import { PIXELS_URL } from '@/lib/constants';
+import { getRandomChars } from '@/lib/generate';
 
 const generateId = () => getRandomChars(9);
 
@@ -31,7 +30,7 @@ export function PixelEditForm({
   onSave?: () => void;
   onClose?: () => void;
 }) {
-  const { formatMessage, labels, messages, getErrorMessage } = useMessages();
+  const { t, labels, messages, getErrorMessage } = useMessages();
   const { mutateAsync, error, isPending, touch, toast } = useUpdateQuery(
     pixelId ? `/pixels/${pixelId}` : '/pixels',
     {
@@ -39,7 +38,8 @@ export function PixelEditForm({
       teamId,
     },
   );
-  const { pixelsUrl } = useConfig();
+  const config = useConfig();
+  const pixelsUrl = config?.pixelsUrl;
   const hostUrl = pixelsUrl || PIXELS_URL;
   const { data, isLoading } = usePixelQuery(pixelId);
   const [slug, setSlug] = useState(generateId());
@@ -47,8 +47,9 @@ export function PixelEditForm({
   const handleSubmit = async (data: any) => {
     await mutateAsync(data, {
       onSuccess: async () => {
-        toast(formatMessage(messages.saved));
+        toast(t(messages.saved));
         touch('pixels');
+        touch(`pixel:${pixelId}`);
         onSave?.();
         onClose?.();
       },
@@ -78,26 +79,22 @@ export function PixelEditForm({
       {({ setValue }) => {
         return (
           <>
-            <FormField
-              label={formatMessage(labels.name)}
-              name="name"
-              rules={{ required: formatMessage(labels.required) }}
-            >
+            <FormField label={t(labels.name)} name="name" rules={{ required: t(labels.required) }}>
               <TextField autoComplete="off" />
             </FormField>
 
             <FormField
               name="slug"
               rules={{
-                required: formatMessage(labels.required),
+                required: t(labels.required),
               }}
               style={{ display: 'none' }}
             >
               <input type="hidden" />
             </FormField>
 
-            <Column>
-              <Label>{formatMessage(labels.link)}</Label>
+            <Column gap="1">
+              <Label>{t(labels.link)}</Label>
               <Row alignItems="center" gap>
                 <TextField
                   value={`${hostUrl}/${slug}`}
@@ -117,10 +114,10 @@ export function PixelEditForm({
             <Row justifyContent="flex-end" paddingTop="3" gap="3">
               {onClose && (
                 <Button isDisabled={isPending} onPress={onClose}>
-                  {formatMessage(labels.cancel)}
+                  {t(labels.cancel)}
                 </Button>
               )}
-              <FormSubmitButton isDisabled={false}>{formatMessage(labels.save)}</FormSubmitButton>
+              <FormSubmitButton isDisabled={false}>{t(labels.save)}</FormSubmitButton>
             </Row>
           </>
         );

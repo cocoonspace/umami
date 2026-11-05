@@ -1,3 +1,6 @@
+import { toUnicode } from 'punycode';
+import { DEFAULT_CURRENCY } from './constants';
+
 export function parseTime(val: number) {
   const days = ~~(val / 86400);
   const hours = ~~(val / 3600) - days * 24;
@@ -48,7 +51,7 @@ export function formatLongNumber(value: number) {
   const n = Number(value);
 
   if (n >= 1000000000) {
-    return `${(n / 1000000).toFixed(1)}b`;
+    return `${(n / 1000000000).toFixed(1)}b`;
   }
   if (n >= 1000000) {
     return `${(n / 1000000).toFixed(1)}m`;
@@ -77,7 +80,7 @@ export function stringToColor(str: string) {
   let color = '#';
   for (let i = 0; i < 3; i++) {
     const value = (hash >> (i * 8)) & 0xff;
-    color += ('00' + value.toString(16)).slice(-2);
+    color += `00${value.toString(16)}`.slice(-2);
   }
   return color;
 }
@@ -94,7 +97,7 @@ export function formatCurrency(value: number, currency: string, locale = 'en-US'
     // Fallback to default currency format if an error occurs
     formattedValue = new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'USD',
+      currency: DEFAULT_CURRENCY,
     });
   }
 
@@ -115,4 +118,23 @@ export function formatLongCurrency(value: number, currency: string, locale = 'en
   }
 
   return formatCurrency(n, currency, locale);
+}
+
+export function decodePunycodeDomain(domain?: string | null) {
+  if (!domain) {
+    return domain;
+  }
+
+  try {
+    return toUnicode(domain);
+  } catch {
+    return domain;
+  }
+}
+
+export function truncateString<T extends string | null | undefined>(
+  value: T,
+  maxLength: number,
+): T extends string ? string : T {
+  return (value ? value.substring(0, maxLength) : value) as T extends string ? string : T;
 }

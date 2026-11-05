@@ -1,6 +1,6 @@
 'use client';
-import { ReactNode } from 'react';
-import { AlertBanner, Loading, Column, ColumnProps } from '@umami/react-zen';
+import { Alert, AlertTitle, Column, type ColumnProps, Loading } from '@umami/react-zen';
+import type { ReactNode } from 'react';
 import { useMessages } from '@/components/hooks';
 
 const DEFAULT_WIDTH = '1320px';
@@ -17,10 +17,14 @@ export function PageBody({
   isLoading?: boolean;
   children?: ReactNode;
 } & ColumnProps) {
-  const { formatMessage, messages } = useMessages();
+  const { t, messages } = useMessages();
 
   if (error) {
-    return <AlertBanner title={formatMessage(messages.error)} variant="error" />;
+    return (
+      <Alert variant="danger">
+        <AlertTitle>{t(messages.error)}</AlertTitle>
+      </Alert>
+    );
   }
 
   if (isLoading) {
@@ -31,9 +35,10 @@ export function PageBody({
     <Column
       {...props}
       width="100%"
+      minHeight="100vh"
       paddingBottom="6"
       maxWidth={maxWidth}
-      paddingX={{ xs: '3', md: '6' }}
+      paddingX={{ base: '3', md: '6' }}
       style={{ margin: '0 auto' }}
     >
       {children}

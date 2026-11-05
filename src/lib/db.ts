@@ -5,18 +5,22 @@ export const KAFKA = 'kafka';
 export const KAFKA_PRODUCER = 'kafka-producer';
 
 // Fixes issue with converting bigint values
-BigInt.prototype['toJSON'] = function () {
+(BigInt.prototype as unknown as { toJSON(): number }).toJSON = function () {
   return Number(this);
 };
 
 export function getDatabaseType(url = process.env.DATABASE_URL) {
-  const type = url && url.split(':')[0];
+  const type = url?.split(':')[0];
 
   if (type === 'postgres') {
     return POSTGRESQL;
   }
 
   return type;
+}
+
+export function isRelationalOnly() {
+  return !process.env.CLICKHOUSE_URL && getDatabaseType() === POSTGRESQL;
 }
 
 export async function runQuery(queries: any) {

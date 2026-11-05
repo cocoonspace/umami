@@ -1,18 +1,18 @@
 import {
-  Form,
-  FormField,
-  TextField,
-  Grid,
-  FormButtons,
-  FormSubmitButton,
   Button,
-  Loading,
   Column,
+  Form,
+  FormButtons,
+  FormField,
+  FormSubmitButton,
+  Grid,
   Label,
+  Loading,
+  TextField,
 } from '@umami/react-zen';
-import { useMessages, useReportQuery, useUpdateQuery } from '@/components/hooks';
-import { LookupField } from '@/components/input/LookupField';
+import { useGoalDefinitionQuery, useMessages, useMobile, useUpdateQuery } from '@/components/hooks';
 import { ActionSelect } from '@/components/input/ActionSelect';
+import { LookupField } from '@/components/input/LookupField';
 
 export function GoalEditForm({
   id,
@@ -25,17 +25,19 @@ export function GoalEditForm({
   onSave?: () => void;
   onClose?: () => void;
 }) {
-  const { formatMessage, labels } = useMessages();
-  const { data } = useReportQuery(id);
-  const { mutateAsync, error, isPending, touch } = useUpdateQuery(`/reports${id ? `/${id}` : ''}`);
+  const { t, labels } = useMessages();
+  const { isMobile } = useMobile();
+  const { data } = useGoalDefinitionQuery(websiteId, id);
+  const { mutateAsync, error, isPending, touch } = useUpdateQuery(
+    `/websites/${websiteId}/goals${id ? `/${id}` : ''}`,
+  );
 
   const handleSubmit = async (formData: Record<string, any>) => {
     await mutateAsync(
-      { ...formData, type: 'goal', websiteId },
+      { name: formData.name, description: formData.description, parameters: formData.parameters },
       {
         onSuccess: async () => {
-          if (id) touch(`report:${id}`);
-          touch('reports:goal');
+          touch('websites:goals');
           onSave?.();
           onClose?.();
         },
@@ -59,42 +61,59 @@ export function GoalEditForm({
 
         return (
           <>
-            <FormField
-              name="name"
-              label={formatMessage(labels.name)}
-              rules={{ required: formatMessage(labels.required) }}
-            >
+            <FormField name="name" label={t(labels.name)} rules={{ required: t(labels.required) }}>
               <TextField autoFocus />
             </FormField>
-            <Column>
-              <Label>{formatMessage(labels.action)}</Label>
-              <Grid columns="260px 1fr" gap>
-                <Column>
-                  <FormField
-                    name="parameters.type"
-                    rules={{ required: formatMessage(labels.required) }}
-                  >
+            <Column gap="1">
+              <Label>{t(labels.action)}</Label>
+              {isMobile ? (
+                <Column gap style={{ minWidth: 0 }}>
+                  <FormField name="parameters.type" rules={{ required: t(labels.required) }}>
                     <ActionSelect />
                   </FormField>
-                </Column>
-                <Column>
-                  <FormField
-                    name="parameters.value"
-                    rules={{ required: formatMessage(labels.required) }}
-                  >
+                  <FormField name="parameters.value" rules={{ required: t(labels.required) }}>
                     {({ field }) => {
-                      return <LookupField websiteId={websiteId} type={type} {...field} />;
+                      return (
+                        <LookupField
+                          websiteId={websiteId}
+                          type={type}
+                          allowCustomValue
+                          {...field}
+                        />
+                      );
                     }}
                   </FormField>
                 </Column>
-              </Grid>
+              ) : (
+                <Grid columns="260px 1fr" gap>
+                  <Column style={{ minWidth: 0 }}>
+                    <FormField name="parameters.type" rules={{ required: t(labels.required) }}>
+                      <ActionSelect />
+                    </FormField>
+                  </Column>
+                  <Column style={{ minWidth: 0 }}>
+                    <FormField name="parameters.value" rules={{ required: t(labels.required) }}>
+                      {({ field }) => {
+                        return (
+                          <LookupField
+                            websiteId={websiteId}
+                            type={type}
+                            allowCustomValue
+                            {...field}
+                          />
+                        );
+                      }}
+                    </FormField>
+                  </Column>
+                </Grid>
+              )}
             </Column>
 
             <FormButtons>
               <Button onPress={onClose} isDisabled={isPending}>
-                {formatMessage(labels.cancel)}
+                {t(labels.cancel)}
               </Button>
-              <FormSubmitButton>{formatMessage(labels.save)}</FormSubmitButton>
+              <FormSubmitButton>{t(labels.save)}</FormSubmitButton>
             </FormButtons>
           </>
         );

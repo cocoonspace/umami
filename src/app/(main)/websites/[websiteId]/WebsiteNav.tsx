@@ -1,180 +1,102 @@
-import { Text, Column } from '@umami/react-zen';
-import {
-  Eye,
-  User,
-  Clock,
-  Sheet,
-  Tag,
-  ChartPie,
-  UserPlus,
-  AlignEndHorizontal,
-} from '@/components/icons';
-import { Lightning, Path, Money, Target, Funnel, Magnet, Network } from '@/components/svg';
-import { useMessages, useNavigation } from '@/components/hooks';
-import { SideMenu } from '@/components/common/SideMenu';
-import { WebsiteSelect } from '@/components/input/WebsiteSelect';
+import { Column, Row, Text, Tooltip, TooltipTrigger } from '@umami/react-zen';
+import { IconLabel } from '@/components/common/IconLabel';
+import Link from '@/components/common/Link';
+import { useMessages, useNavigation, useWebsiteNavItems } from '@/components/hooks';
+import { ArrowLeft } from '@/components/icons';
 
 export function WebsiteNav({
   websiteId,
+  isCollapsed,
   onItemClick,
 }: {
   websiteId: string;
+  isCollapsed?: boolean;
   onItemClick?: () => void;
 }) {
-  const { formatMessage, labels } = useMessages();
-  const { pathname, renderUrl, teamId, router } = useNavigation();
-
-  const renderPath = (path: string) =>
-    renderUrl(`/websites/${websiteId}${path}`, {
-      event: undefined,
-      compare: undefined,
-      view: undefined,
-    });
-
-  const items = [
-    {
-      label: formatMessage(labels.traffic),
-      items: [
-        {
-          id: 'overview',
-          label: formatMessage(labels.overview),
-          icon: <Eye />,
-          path: renderPath(''),
-        },
-        {
-          id: 'events',
-          label: formatMessage(labels.events),
-          icon: <Lightning />,
-          path: renderPath('/events'),
-        },
-        {
-          id: 'sessions',
-          label: formatMessage(labels.sessions),
-          icon: <User />,
-          path: renderPath('/sessions'),
-        },
-        {
-          id: 'realtime',
-          label: formatMessage(labels.realtime),
-          icon: <Clock />,
-          path: renderPath('/realtime'),
-        },
-        {
-          id: 'compare',
-          label: formatMessage(labels.compare),
-          icon: <AlignEndHorizontal />,
-          path: renderPath('/compare'),
-        },
-        {
-          id: 'breakdown',
-          label: formatMessage(labels.breakdown),
-          icon: <Sheet />,
-          path: renderPath('/breakdown'),
-        },
-      ],
-    },
-    {
-      label: formatMessage(labels.behavior),
-      items: [
-        {
-          id: 'goals',
-          label: formatMessage(labels.goals),
-          icon: <Target />,
-          path: renderPath('/goals'),
-        },
-        {
-          id: 'funnel',
-          label: formatMessage(labels.funnels),
-          icon: <Funnel />,
-          path: renderPath('/funnels'),
-        },
-        {
-          id: 'journeys',
-          label: formatMessage(labels.journeys),
-          icon: <Path />,
-          path: renderPath('/journeys'),
-        },
-        {
-          id: 'retention',
-          label: formatMessage(labels.retention),
-          icon: <Magnet />,
-          path: renderPath('/retention'),
-        },
-      ],
-    },
-    {
-      label: formatMessage(labels.audience),
-      items: [
-        {
-          id: 'segments',
-          label: formatMessage(labels.segments),
-          icon: <ChartPie />,
-          path: renderPath('/segments'),
-        },
-        {
-          id: 'cohorts',
-          label: formatMessage(labels.cohorts),
-          icon: <UserPlus />,
-          path: renderPath('/cohorts'),
-        },
-      ],
-    },
-    {
-      label: formatMessage(labels.growth),
-      items: [
-        {
-          id: 'utm',
-          label: formatMessage(labels.utm),
-          icon: <Tag />,
-          path: renderPath('/utm'),
-        },
-        {
-          id: 'revenue',
-          label: formatMessage(labels.revenue),
-          icon: <Money />,
-          path: renderPath('/revenue'),
-        },
-        {
-          id: 'attribution',
-          label: formatMessage(labels.attribution),
-          icon: <Network />,
-          path: renderPath('/attribution'),
-        },
-      ],
-    },
-  ];
-
-  const handleChange = (value: string) => {
-    router.push(renderUrl(`/websites/${value}`));
-  };
-
-  const renderValue = (value: any) => {
-    return (
-      <Text truncate style={{ maxWidth: 160, lineHeight: 1 }}>
-        {value?.selectedItem?.name}
-      </Text>
-    );
-  };
-
-  const selectedKey = items
-    .flatMap(e => e.items)
-    .find(({ path }) => path && pathname.endsWith(path.split('?')[0]))?.id;
+  const { t, labels } = useMessages();
+  const { renderUrl } = useNavigation();
+  const { items, selectedKey } = useWebsiteNavItems(websiteId);
 
   return (
-    <Column padding="3" position="sticky" top="0" gap>
-      <WebsiteSelect
-        websiteId={websiteId}
-        teamId={teamId}
-        onChange={handleChange}
-        renderValue={renderValue}
-        buttonProps={{ style: { outline: 'none' } }}
-      />
-      <SideMenu
-        items={items}
-        selectedKey={selectedKey}
-        allowMinimize={false}
-        onItemClick={onItemClick}
-      />
+    <Column gap="2" marginTop={isCollapsed ? '2' : undefined}>
+      <Link href={renderUrl('/websites', false)} role="button" onClick={onItemClick}>
+        {isCollapsed ? (
+          <TooltipTrigger delay={0}>
+            <Row
+              tabIndex={0}
+              alignItems="center"
+              justifyContent="center"
+              hover={{ backgroundColor: 'surface-sunken' }}
+              borderRadius
+              minHeight="9"
+            >
+              <IconLabel icon={<ArrowLeft />} label="" padding />
+            </Row>
+            <Tooltip placement="right">{t(labels.back)}</Tooltip>
+          </TooltipTrigger>
+        ) : (
+          <Row
+            alignItems="center"
+            hover={{ backgroundColor: 'surface-sunken' }}
+            borderRadius
+            minHeight="9"
+          >
+            <IconLabel icon={<ArrowLeft />} label={t(labels.back)} padding />
+          </Row>
+        )}
+      </Link>
+      {items.map(({ label: sectionLabel, items: sectionItems }, index) => (
+        <Column key={`${sectionLabel}${index}`} gap="1" marginBottom="1">
+          {!isCollapsed && (
+            <Row paddingX="3" marginTop="2">
+              <Text weight="bold">{sectionLabel}</Text>
+            </Row>
+          )}
+          {sectionItems.map(({ id, path, label, icon }) => {
+            const isSelected = selectedKey === id;
+            return (
+              <Link key={id} href={path} role="button" onClick={onItemClick}>
+                {isCollapsed ? (
+                  <TooltipTrigger delay={0}>
+                    <Row
+                      tabIndex={0}
+                      alignItems="center"
+                      justifyContent="center"
+                      hover={{ backgroundColor: 'surface-sunken' }}
+                      backgroundColor={isSelected ? 'surface-sunken' : undefined}
+                      borderRadius
+                      minHeight="9"
+                    >
+                      <IconLabel
+                        icon={icon}
+                        label=""
+                        weight={isSelected ? 'bold' : undefined}
+                        padding
+                      />
+                    </Row>
+                    <Tooltip placement="right">{label}</Tooltip>
+                  </TooltipTrigger>
+                ) : (
+                  <Row
+                    alignItems="center"
+                    hover={{ backgroundColor: 'surface-sunken' }}
+                    backgroundColor={isSelected ? 'surface-sunken' : undefined}
+                    borderRadius
+                    minHeight="9"
+                  >
+                    <IconLabel
+                      icon={icon}
+                      label={label}
+                      weight={isSelected ? 'bold' : undefined}
+                      padding
+                    />
+                  </Row>
+                )}
+              </Link>
+            );
+          })}
+        </Column>
+      ))}
     </Column>
   );
 }

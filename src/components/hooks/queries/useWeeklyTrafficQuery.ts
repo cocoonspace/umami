@@ -1,7 +1,7 @@
-import { useApi } from '../useApi';
-import { useModified } from '../useModified';
-import { useDateParameters } from '../useDateParameters';
 import { useFilterParameters } from '@/components/hooks/useFilterParameters';
+import { useApi } from '../useApi';
+import { useDateParameters } from '../useDateParameters';
+import { useModified } from '../useModified';
 
 export function useWeeklyTrafficQuery(websiteId: string, params?: Record<string, string | number>) {
   const { get, useQuery } = useApi();
@@ -12,13 +12,12 @@ export function useWeeklyTrafficQuery(websiteId: string, params?: Record<string,
   return useQuery({
     queryKey: [
       'sessions',
-      { websiteId, modified, startAt, endAt, unit, timezone, ...params, ...filters },
+      { websiteId, modified, startAt, endAt, timezone, ...params, ...filters },
     ],
     queryFn: () => {
       return get(`/websites/${websiteId}/sessions/weekly`, {
         startAt,
         endAt,
-        unit,
         timezone,
         ...params,
         ...filters,

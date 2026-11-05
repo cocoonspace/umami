@@ -1,23 +1,23 @@
-import { DataTable, DataColumn, Row, DataTableProps } from '@umami/react-zen';
-import { useMessages, useNavigation } from '@/components/hooks';
-import { DateDistance } from '@/components/common/DateDistance';
-import { filtersObjectToArray } from '@/lib/params';
-import { CohortEditButton } from '@/app/(main)/websites/[websiteId]/cohorts/CohortEditButton';
+import { DataColumn, DataTable, type DataTableProps, Row } from '@umami/react-zen';
 import { CohortDeleteButton } from '@/app/(main)/websites/[websiteId]/cohorts/CohortDeleteButton';
-import Link from 'next/link';
+import { CohortEditButton } from '@/app/(main)/websites/[websiteId]/cohorts/CohortEditButton';
+import { DateDistance } from '@/components/common/DateDistance';
+import Link from '@/components/common/Link';
+import { useMessages, useNavigation } from '@/components/hooks';
+import { filtersObjectToArray } from '@/lib/params';
 
 export function CohortsTable(props: DataTableProps) {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const { websiteId, renderUrl } = useNavigation();
 
   return (
     <DataTable {...props}>
-      <DataColumn id="name" label={formatMessage(labels.name)}>
+      <DataColumn id="name" label={t(labels.name)}>
         {(row: any) => (
           <Link href={renderUrl(`/websites/${websiteId}?cohort=${row.id}`, false)}>{row.name}</Link>
         )}
       </DataColumn>
-      <DataColumn id="created" label={formatMessage(labels.created)}>
+      <DataColumn id="created" label={t(labels.created)}>
         {(row: any) => <DateDistance date={new Date(row.createdAt)} />}
       </DataColumn>
       <DataColumn id="action" align="end" width="100px">

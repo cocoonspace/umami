@@ -1,12 +1,12 @@
+import type { ReactQueryOptions } from '@/lib/types';
 import { useApi } from '../useApi';
-import { useFilterParameters } from '../useFilterParameters';
 import { useDateParameters } from '../useDateParameters';
-import { ReactQueryOptions } from '@/lib/types';
+import { useFilterParameters } from '../useFilterParameters';
 
 export function useEventDataPropertiesQuery(websiteId: string, options?: ReactQueryOptions) {
   const { get, useQuery } = useApi();
   const { startAt, endAt, unit, timezone } = useDateParameters();
-  const filters = useFilterParameters();
+  const filters = useFilterParameters({ includePagination: false });
 
   return useQuery<any>({
     queryKey: [

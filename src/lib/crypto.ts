@@ -1,5 +1,6 @@
-import crypto from 'crypto';
-import { v4, v5 } from 'uuid';
+import crypto from 'node:crypto';
+import { startOfDay, startOfMonth, startOfWeek } from 'date-fns';
+import { v4, v5, v7 } from 'uuid';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
@@ -57,7 +58,21 @@ export function secret() {
 }
 
 export function uuid(...args: any) {
-  if (!args.length) return v4();
+  if (args.length) {
+    return v5(hash(...args, secret()), v5.DNS);
+  }
 
-  return v5(hash(...args, secret()), v5.DNS);
+  return process.env.USE_UUIDV7 ? v7() : v4();
+}
+
+export function createAuthKey() {
+  return crypto.randomBytes(16).toString('hex');
+}
+
+export function getSalt(saltRotation: string, createdAt: Date): string {
+  return hash(
+    (saltRotation === 'day' ? startOfDay : saltRotation === 'week' ? startOfWeek : startOfMonth)(
+      createdAt,
+    ).toUTCString(),
+  );
 }

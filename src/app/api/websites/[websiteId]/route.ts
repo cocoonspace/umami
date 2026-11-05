@@ -1,9 +1,19 @@
-import { z } from 'zod';
-import { canUpdateWebsite, canDeleteWebsite, canViewWebsite } from '@/permissions';
-import { SHARE_ID_REGEX } from '@/lib/constants';
+import type { Prisma } from '@/generated/prisma/client';
+import { ENTITY_TYPE } from '@/lib/constants';
+import { uuid } from '@/lib/crypto';
+import { getRecorderConfig, getRecorderEnabled } from '@/lib/recorder';
 import { parseRequest } from '@/lib/request';
-import { ok, json, unauthorized, serverError, badRequest } from '@/lib/response';
-import { deleteWebsite, getWebsite, updateWebsite } from '@/queries/prisma';
+import { badRequest, json, ok, serverError, unauthorized } from '@/lib/response';
+import { canDeleteWebsite, canUpdateWebsite, canViewSharedWebsite } from '@/permissions';
+import {
+  createShare,
+  deleteSharesByEntityId,
+  deleteWebsite,
+  getShareByEntityId,
+  getWebsite,
+  updateWebsite,
+} from '@/queries/prisma';
+import { updateWebsiteRequestSchema } from '../request-schema';
 
 export async function GET(
   request: Request,
@@ -17,7 +27,7 @@ export async function GET(
 
   const { websiteId } = await params;
 
-  if (!(await canViewWebsite(auth, websiteId))) {
+  if (!(await canViewSharedWebsite(auth, websiteId))) {
     return unauthorized();
   }
 
@@ -30,31 +40,65 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ websiteId: string }> },
 ) {
-  const schema = z.object({
-    name: z.string().optional(),
-    domain: z.string().optional(),
-    shareId: z.string().regex(SHARE_ID_REGEX).nullable().optional(),
-  });
-
-  const { auth, body, error } = await parseRequest(request, schema);
+  const { auth, body, error } = await parseRequest(request, updateWebsiteRequestSchema);
 
   if (error) {
     return error();
   }
 
   const { websiteId } = await params;
-  const { name, domain, shareId } = body;
+  const { name, domain, shareId, replayConfig } = body;
 
   if (!(await canUpdateWebsite(auth, websiteId))) {
     return unauthorized();
   }
 
   try {
-    const website = await updateWebsite(websiteId, { name, domain, shareId });
+    const currentWebsite = await getWebsite(websiteId);
 
-    return Response.json(website);
+    if (!currentWebsite) {
+      return badRequest({ message: 'Website not found.' });
+    }
+
+    const nextReplayConfig = getRecorderConfig(
+      replayConfig === null
+        ? {}
+        : {
+            ...getRecorderConfig(currentWebsite.replayConfig),
+            ...(replayConfig ?? {}),
+          },
+    );
+
+    const website = await updateWebsite(websiteId, {
+      name,
+      domain,
+      ...(replayConfig !== undefined && {
+        replayConfig: nextReplayConfig as Prisma.InputJsonObject,
+        recorderEnabled: getRecorderEnabled(nextReplayConfig),
+      }),
+    });
+
+    if (shareId === null) {
+      await deleteSharesByEntityId(website.id);
+    }
+
+    const share = shareId
+      ? await createShare({
+          id: uuid(),
+          entityId: websiteId,
+          shareType: ENTITY_TYPE.website,
+          name: website.name,
+          slug: shareId,
+          parameters: { overview: true, events: true },
+        })
+      : await getShareByEntityId(websiteId);
+
+    return json({
+      ...website,
+      shareId: share?.slug ?? null,
+    });
   } catch (e: any) {
-    if (e.message.toLowerCase().includes('unique constraint') && e.message.includes('share_id')) {
+    if (e.message.toLowerCase().includes('unique constraint')) {
       return badRequest({ message: 'That share ID is already taken.' });
     }
 

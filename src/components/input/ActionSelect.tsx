@@ -1,4 +1,4 @@
-import { Select, ListItem } from '@umami/react-zen';
+import { ListItem, Select } from '@umami/react-zen';
 import { useMessages } from '@/components/hooks';
 
 export interface ActionSelectProps {
@@ -7,12 +7,12 @@ export interface ActionSelectProps {
 }
 
 export function ActionSelect({ value = 'path', onChange }: ActionSelectProps) {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
 
   return (
-    <Select value={value} onChange={onChange}>
-      <ListItem id="path">{formatMessage(labels.viewedPage)}</ListItem>
-      <ListItem id="event">{formatMessage(labels.triggeredEvent)}</ListItem>
+    <Select value={value} onChange={val => onChange?.(val as string)}>
+      <ListItem id="path">{t(labels.viewedPage)}</ListItem>
+      <ListItem id="event">{t(labels.triggeredEvent)}</ListItem>
     </Select>
   );
 }

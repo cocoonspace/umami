@@ -1,9 +1,9 @@
-import { setItem } from '@/lib/storage';
+import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { TIMEZONE_CONFIG, TIMEZONE_LEGACY } from '@/lib/constants';
-import { formatInTimeZone, zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
-import { useApp, setTimezone } from '@/store/app';
-import { useLocale } from './useLocale';
 import { getTimezone } from '@/lib/date';
+import { setItem } from '@/lib/storage';
+import { setTimezone, useApp } from '@/store/app';
+import { useLocale } from './useLocale';
 
 const selector = (state: { timezone: string }) => state.timezone;
 
@@ -21,7 +21,7 @@ export function useTimezone() {
     return formatInTimeZone(
       /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{3})?Z$/.test(date)
         ? date
-        : date.split(' ').join('T') + 'Z',
+        : `${date.split(' ').join('T')}Z`,
       timezone,
       pattern,
       { locale: dateLocale },
@@ -61,19 +61,19 @@ export function useTimezone() {
   };
 
   const toUtc = (date: Date | string | number) => {
-    return zonedTimeToUtc(date, timezone);
+    return fromZonedTime(date, timezone);
   };
 
   const fromUtc = (date: Date | string | number) => {
-    return utcToZonedTime(date, timezone);
+    return toZonedTime(date, timezone);
   };
 
   const localToUtc = (date: Date | string | number) => {
-    return zonedTimeToUtc(date, localTimeZone);
+    return fromZonedTime(date, localTimeZone);
   };
 
   const localFromUtc = (date: Date | string | number) => {
-    return utcToZonedTime(date, localTimeZone);
+    return toZonedTime(date, localTimeZone);
   };
 
   const canonicalizeTimezone = (timezone: string): string => {

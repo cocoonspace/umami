@@ -1,9 +1,8 @@
-import { useState } from 'react';
-import { useMessages, useWebsiteEventsQuery } from '@/components/hooks';
-import { EventsTable } from './EventsTable';
+import { type ReactNode, useState } from 'react';
 import { DataGrid } from '@/components/common/DataGrid';
-import { ReactNode } from 'react';
+import { useMessages, useWebsiteEventsQuery } from '@/components/hooks';
 import { FilterButtons } from '@/components/input/FilterButtons';
+import { EventsTable } from './EventsTable';
 
 export function EventsDataTable({
   websiteId,
@@ -12,22 +11,22 @@ export function EventsDataTable({
   teamId?: string;
   children?: ReactNode;
 }) {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const [view, setView] = useState('all');
   const query = useWebsiteEventsQuery(websiteId, { view });
 
   const buttons = [
     {
       id: 'all',
-      label: formatMessage(labels.all),
+      label: t(labels.all),
     },
     {
       id: 'views',
-      label: formatMessage(labels.views),
+      label: t(labels.views),
     },
     {
       id: 'events',
-      label: formatMessage(labels.events),
+      label: t(labels.events),
     },
   ];
 

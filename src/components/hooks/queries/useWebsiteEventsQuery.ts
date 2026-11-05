@@ -1,8 +1,9 @@
+import { MAX_PAGING_RESULTS } from '@/lib/constants';
+import type { ReactQueryOptions } from '@/lib/types';
 import { useApi } from '../useApi';
-import { useFilterParameters } from '../useFilterParameters';
 import { useDateParameters } from '../useDateParameters';
+import { useFilterParameters } from '../useFilterParameters';
 import { usePagedQuery } from '../usePagedQuery';
-import { ReactQueryOptions } from '@/lib/types';
 
 const EVENT_TYPES = {
   views: 1,
@@ -32,6 +33,7 @@ export function useWebsiteEventsQuery(
         ...filters,
         ...pageParams,
         eventType: EVENT_TYPES[params.view],
+        maxResults: MAX_PAGING_RESULTS,
       }),
     enabled: !!websiteId,
     ...options,

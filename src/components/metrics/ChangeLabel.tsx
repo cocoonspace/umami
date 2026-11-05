@@ -1,19 +1,19 @@
-import { Icon, Text, Row, RowProps } from '@umami/react-zen';
-import { ReactNode } from 'react';
+import { Icon, Row, type RowProps, Text } from '@umami/react-zen';
+import type { ReactNode } from 'react';
 import { ArrowRight } from '@/components/icons';
 
 const STYLES = {
   positive: {
-    color: `var(--success-color)`,
-    background: `color-mix(in srgb, var(--success-color), var(--background-color) 95%)`,
+    color: `var(--zen-status-success)`,
+    background: `var(--zen-status-success-bg)`,
   },
   negative: {
-    color: `var(--danger-color)`,
-    background: `color-mix(in srgb, var(--danger-color), var(--background-color) 95%)`,
+    color: `var(--zen-status-error)`,
+    background: `var(--zen-status-error-bg)`,
   },
   neutral: {
-    color: `var(--font-color-muted)`,
-    background: `var(--base-color-2)`,
+    color: `var(--zen-fg-muted)`,
+    background: `var(--zen-surface-raised)`,
   },
 };
 
@@ -33,7 +33,7 @@ export function ChangeLabel({
 } & RowProps) {
   const positive = value >= 0;
   const negative = value < 0;
-  const neutral = value === 0 || isNaN(value);
+  const neutral = value === 0 || Number.isNaN(value);
   const good = reverseColors ? negative : positive;
 
   const style =

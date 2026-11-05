@@ -1,13 +1,17 @@
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import { headers } from 'next/headers';
 import { Suspense } from 'react';
-import { Metadata } from 'next';
+import { getBaseUrl } from '@/lib/get-base-url';
 import { Providers } from './Providers';
-import '@fontsource/inter/300.css';
-import '@fontsource/inter/400.css';
-import '@fontsource/inter/500.css';
-import '@fontsource/inter/700.css';
-import '@umami/react-zen/styles.css';
-import '@/styles/global.css';
-import '@/styles/variables.css';
+import '@umami/react-zen/styles.full.css';
+import './global.css';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export default function ({ children }) {
   if (process.env.DISABLE_UI) {
@@ -19,13 +23,13 @@ export default function ({ children }) {
   }
 
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.className} ${inter.variable}`}>
       <head>
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <link rel="manifest" href="/site.webmanifest" />
+        <link rel="manifest" href="/site.webmanifest" crossOrigin="use-credentials" />
         <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5" />
         <meta name="msapplication-TileColor" content="#da532c" />
         <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
@@ -41,9 +45,14 @@ export default function ({ children }) {
   );
 }
 
-export const metadata: Metadata = {
-  title: {
-    template: '%s | Umami',
-    default: 'Umami',
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const headerStore = await headers();
+
+  return {
+    metadataBase: getBaseUrl(headerStore),
+    title: {
+      template: '%s | Umami',
+      default: 'Umami',
+    },
+  };
+}

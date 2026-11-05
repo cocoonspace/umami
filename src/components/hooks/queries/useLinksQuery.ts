@@ -1,16 +1,23 @@
+import type { ReactQueryOptions } from '@/lib/types';
 import { useApi } from '../useApi';
-import { usePagedQuery } from '../usePagedQuery';
 import { useModified } from '../useModified';
-import { ReactQueryOptions } from '@/lib/types';
+import { usePagedQuery } from '../usePagedQuery';
 
-export function useLinksQuery({ teamId }: { teamId?: string }, options?: ReactQueryOptions) {
+export function useLinksQuery(
+  { teamId }: { teamId?: string },
+  params?: Record<string, any>,
+  options?: ReactQueryOptions,
+) {
   const { modified } = useModified('links');
   const { get } = useApi();
 
   return usePagedQuery({
-    queryKey: ['links', { teamId, modified }],
+    queryKey: ['links', { teamId, modified, ...params }],
     queryFn: pageParams => {
-      return get(teamId ? `/teams/${teamId}/links` : '/links', pageParams);
+      return get(teamId ? `/teams/${teamId}/links` : '/links', {
+        ...pageParams,
+        ...params,
+      });
     },
     ...options,
   });

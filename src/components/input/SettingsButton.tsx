@@ -1,28 +1,28 @@
-import { Key } from 'react';
 import {
-  Icon,
   Button,
-  MenuTrigger,
-  Popover,
+  Icon,
   Menu,
   MenuItem,
-  MenuSeparator,
   MenuSection,
+  MenuSeparator,
+  MenuTrigger,
+  Popover,
 } from '@umami/react-zen';
-import { useMessages, useLoginQuery, useNavigation, useConfig } from '@/components/hooks';
+import type { Key } from 'react';
+import { useConfig, useLoginQuery, useMessages, useNavigation } from '@/components/hooks';
 import {
-  LogOut,
-  LockKeyhole,
-  Settings,
-  UserCircle,
-  LifeBuoy,
   BookText,
   ExternalLink,
+  LifeBuoy,
+  LockKeyhole,
+  LogOut,
+  Settings,
+  UserCircle,
 } from '@/components/icons';
 import { DOCS_URL } from '@/lib/constants';
 
 export function SettingsButton() {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const { user } = useLoginQuery();
   const { router } = useNavigation();
   const { cloudMode } = useConfig();
@@ -48,20 +48,31 @@ export function SettingsButton() {
           <UserCircle />
         </Icon>
       </Button>
-      <Popover placement="bottom end">
-        <Menu autoFocus="last" onAction={handleAction}>
+      <Popover side="bottom" align="end">
+        <Menu>
           <MenuSection title={user.username}>
             <MenuSeparator />
-            <MenuItem id="/settings" icon={<Settings />} label={formatMessage(labels.settings)} />
+            <MenuItem
+              id="/settings"
+              icon={<Settings />}
+              label={t(labels.settings)}
+              onAction={handleAction}
+            />
             {!cloudMode && user.isAdmin && (
-              <MenuItem id="/admin" icon={<LockKeyhole />} label={formatMessage(labels.admin)} />
+              <MenuItem
+                id="/admin"
+                icon={<LockKeyhole />}
+                label={t(labels.admin)}
+                onAction={handleAction}
+              />
             )}
             {cloudMode && (
               <>
                 <MenuItem
                   id="/docs"
                   icon={<BookText />}
-                  label={formatMessage(labels.documentation)}
+                  label={t(labels.documentation)}
+                  onAction={handleAction}
                 >
                   <Icon color="muted">
                     <ExternalLink />
@@ -70,12 +81,18 @@ export function SettingsButton() {
                 <MenuItem
                   id="/settings/support"
                   icon={<LifeBuoy />}
-                  label={formatMessage(labels.support)}
+                  label={t(labels.support)}
+                  onAction={handleAction}
                 />
               </>
             )}
             <MenuSeparator />
-            <MenuItem id="/logout" icon={<LogOut />} label={formatMessage(labels.logout)} />
+            <MenuItem
+              id="/logout"
+              icon={<LogOut />}
+              label={t(labels.logout)}
+              onAction={handleAction}
+            />
           </MenuSection>
         </Menu>
       </Popover>

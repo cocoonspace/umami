@@ -11,7 +11,6 @@ export function renderDateLabels(unit: string, locale: string) {
 
     switch (unit) {
       case 'minute':
-        return formatDate(d, 'h:mm', locale);
       case 'hour':
         return formatDate(d, 'p', locale);
       case 'day':
@@ -24,4 +23,19 @@ export function renderDateLabels(unit: string, locale: string) {
         return label;
     }
   };
+}
+
+export function getChartBucketIndex(data: any[], date: Date) {
+  let index = -1;
+
+  for (let i = 0; i < data.length; i++) {
+    const timestamp = new Date(data[i]?.x ?? data[i]).getTime();
+
+    if (!Number.isFinite(timestamp)) continue;
+    if (timestamp > date.getTime()) break;
+
+    index = i;
+  }
+
+  return index;
 }

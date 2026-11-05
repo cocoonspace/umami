@@ -1,29 +1,29 @@
 'use client';
-import { Button, Grid, Column, Heading } from '@umami/react-zen';
-import Link from 'next/link';
+import { Button, Column, Grid, Heading } from '@umami/react-zen';
 import Script from 'next/script';
-import { Panel } from '@/components/common/Panel';
-import { PageBody } from '@/components/common/PageBody';
-import { EventsChart } from '@/components/metrics/EventsChart';
 import { WebsiteChart } from '@/app/(main)/websites/[websiteId]/WebsiteChart';
-import { useWebsiteQuery } from '@/components/hooks';
+import Link from '@/components/common/Link';
+import { PageBody } from '@/components/common/PageBody';
 import { PageHeader } from '@/components/common/PageHeader';
+import { Panel } from '@/components/common/Panel';
+import { useWebsiteQuery } from '@/components/hooks';
+import { EventsChart } from '@/components/metrics/EventsChart';
 
 export function TestConsolePage({ websiteId }: { websiteId: string }) {
   const { data } = useWebsiteQuery(websiteId);
 
   function handleRunScript() {
-    window['umami'].track(props => ({
+    window.umami.track(props => ({
       ...props,
       url: '/page-view',
       referrer: 'https://www.google.com',
     }));
-    window['umami'].track('track-event-no-data');
-    window['umami'].track('track-event-with-data', {
+    window.umami.track('track-event-no-data');
+    window.umami.track('track-event-with-data', {
       test: 'test-data',
       boolean: true,
       booleanError: 'true',
-      time: new Date(),
+      time: new Date().toISOString(),
       user: `user${Math.round(Math.random() * 10)}`,
       number: 1,
       number2: Math.random() * 100,
@@ -40,32 +40,32 @@ export function TestConsolePage({ websiteId }: { websiteId: string }) {
   }
 
   function handleRunRevenue() {
-    window['umami'].track(props => ({
+    window.umami.track(props => ({
       ...props,
       url: '/checkout-cart',
       referrer: 'https://www.google.com',
     }));
-    window['umami'].track('checkout-cart', {
+    window.umami.track('checkout-cart', {
       revenue: parseFloat((Math.random() * 1000).toFixed(2)),
       currency: 'USD',
     });
-    window['umami'].track('affiliate-link', {
+    window.umami.track('affiliate-link', {
       revenue: parseFloat((Math.random() * 1000).toFixed(2)),
       currency: 'USD',
     });
-    window['umami'].track('promotion-link', {
+    window.umami.track('promotion-link', {
       revenue: parseFloat((Math.random() * 1000).toFixed(2)),
       currency: 'USD',
     });
-    window['umami'].track('checkout-cart', {
+    window.umami.track('checkout-cart', {
       revenue: parseFloat((Math.random() * 1000).toFixed(2)),
       currency: 'EUR',
     });
-    window['umami'].track('promotion-link', {
+    window.umami.track('promotion-link', {
       revenue: parseFloat((Math.random() * 1000).toFixed(2)),
       currency: 'EUR',
     });
-    window['umami'].track('affiliate-link', {
+    window.umami.track('affiliate-link', {
       item1: {
         productIdentity: 'ABC424',
         revenue: parseFloat((Math.random() * 10000).toFixed(2)),
@@ -80,14 +80,14 @@ export function TestConsolePage({ websiteId }: { websiteId: string }) {
   }
 
   function handleRunIdentify() {
-    window['umami'].identify({
+    window.umami.identify({
       userId: 123,
       name: 'brian',
       number: Math.random() * 100,
       test: 'test-data',
       boolean: true,
       booleanError: 'true',
-      time: new Date(),
+      time: new Date().toISOString(),
       time2: new Date().toISOString(),
       nested: {
         test: 'test-data',
@@ -115,6 +115,12 @@ export function TestConsolePage({ websiteId }: { websiteId: string }) {
           data-website-id={websiteId}
           src={`${process.env.basePath || ''}/script.js`}
           data-cache="true"
+          data-performance="true"
+        />
+        <Script
+          async
+          data-website-id={websiteId}
+          src={`${process.env.basePath || ''}/recorder.js`}
         />
         <Panel>
           <Grid columns="1fr 1fr 1fr" gap>

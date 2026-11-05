@@ -1,21 +1,25 @@
 import {
   Button,
+  Column,
   Form,
   FormButtons,
   FormField,
   FormSubmitButton,
-  TextField,
   Loading,
-  Label,
+  Text,
+  TextField,
 } from '@umami/react-zen';
-import { FieldFilters } from '@/components/input/FieldFilters';
+import { useEffect, useState } from 'react';
 import { useMessages, useUpdateQuery, useWebsiteSegmentQuery } from '@/components/hooks';
-import { messages } from '@/components/messages';
+import { FieldFilters } from '@/components/input/FieldFilters';
+import { PropertyFilters } from '@/components/property-data/PropertyFilters';
+import type { SessionPropertyFilter } from '@/lib/types';
 
 export function SegmentEditForm({
   segmentId,
   websiteId,
   filters = [],
+  sessionPropertyFilters = [],
   showFilters = true,
   onSave,
   onClose,
@@ -23,12 +27,18 @@ export function SegmentEditForm({
   segmentId?: string;
   websiteId: string;
   filters?: any[];
+  sessionPropertyFilters?: SessionPropertyFilter[];
   showFilters?: boolean;
   onSave?: () => void;
   onClose?: () => void;
 }) {
   const { data } = useWebsiteSegmentQuery(websiteId, segmentId);
-  const { formatMessage, labels, getErrorMessage } = useMessages();
+  const { t, labels, messages, getErrorMessage } = useMessages();
+  const [currentMatch, setCurrentMatch] = useState<string>('all');
+
+  useEffect(() => {
+    setCurrentMatch((data?.parameters as any)?.match || 'all');
+  }, [data]);
 
   const { mutateAsync, error, isPending, touch, toast } = useUpdateQuery(
     `/websites/${websiteId}/segments${segmentId ? `/${segmentId}` : ''}`,
@@ -38,14 +48,23 @@ export function SegmentEditForm({
   );
 
   const handleSubmit = async (formData: any) => {
-    await mutateAsync(formData, {
-      onSuccess: async () => {
-        toast(formatMessage(messages.saved));
-        touch('segments');
-        onSave?.();
-        onClose?.();
+    await mutateAsync(
+      {
+        ...formData,
+        parameters: {
+          ...formData.parameters,
+          match: currentMatch !== 'all' ? currentMatch : undefined,
+        },
       },
-    });
+      {
+        onSuccess: async () => {
+          toast(t(messages.saved));
+          touch('segments');
+          onSave?.();
+          onClose?.();
+        },
+      },
+    );
   };
 
   if (segmentId && !data) {
@@ -55,32 +74,50 @@ export function SegmentEditForm({
   return (
     <Form
       onSubmit={handleSubmit}
-      defaultValues={data || { parameters: { filters } }}
+      defaultValues={data || { name: '', parameters: { filters, sessionPropertyFilters } }}
       error={getErrorMessage(error)}
     >
-      <FormField
-        name="name"
-        label={formatMessage(labels.name)}
-        rules={{ required: formatMessage(labels.required) }}
-      >
-        <TextField autoFocus={!segmentId} />
-      </FormField>
-      {showFilters && (
-        <>
-          <Label>{formatMessage(labels.filters)}</Label>
-          <FormField name="parameters.filters" rules={{ required: formatMessage(labels.required) }}>
-            <FieldFilters websiteId={websiteId} />
-          </FormField>
-        </>
-      )}
-      <FormButtons>
-        <Button isDisabled={isPending} onPress={onClose}>
-          {formatMessage(labels.cancel)}
-        </Button>
-        <FormSubmitButton variant="primary" data-test="button-submit" isDisabled={isPending}>
-          {formatMessage(labels.save)}
-        </FormSubmitButton>
-      </FormButtons>
+      <Column gap="4">
+        <FormField name="name" label={t(labels.name)} rules={{ required: t(labels.required) }}>
+          <TextField autoFocus={!segmentId} />
+        </FormField>
+        {showFilters && (
+          <Column gap="4">
+            <Column gap="1">
+              <Text weight="bold">{t(labels.filters)}</Text>
+              <FormField name="parameters.filters">
+                <FieldFilters
+                  websiteId={websiteId}
+                  match={currentMatch}
+                  onMatchChange={setCurrentMatch}
+                />
+              </FormField>
+            </Column>
+
+            <Column gap="1">
+              <Text weight="bold">{t(labels.sessionData)}</Text>
+              <FormField name="parameters.sessionPropertyFilters">
+                {({ field }) => (
+                  <PropertyFilters
+                    source="session"
+                    websiteId={websiteId}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              </FormField>
+            </Column>
+          </Column>
+        )}
+        <FormButtons>
+          <Button isDisabled={isPending} onPress={onClose}>
+            {t(labels.cancel)}
+          </Button>
+          <FormSubmitButton variant="primary" data-test="button-submit" isDisabled={isPending}>
+            {t(labels.save)}
+          </FormSubmitButton>
+        </FormButtons>
+      </Column>
     </Form>
   );
 }

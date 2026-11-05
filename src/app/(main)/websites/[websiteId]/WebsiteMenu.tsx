@@ -9,16 +9,16 @@ import {
   Text,
 } from '@umami/react-zen';
 import { Fragment } from 'react';
-import { More, Share, Edit } from '@/components/icons';
 import { useMessages, useNavigation } from '@/components/hooks';
+import { Edit, MoreHorizontal, Share } from '@/components/icons';
 
 export function WebsiteMenu({ websiteId }: { websiteId: string }) {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const { router, updateParams, renderUrl } = useNavigation();
 
   const menuItems = [
-    { id: 'share', label: formatMessage(labels.share), icon: <Share /> },
-    { id: 'edit', label: formatMessage(labels.edit), icon: <Edit />, seperator: true },
+    { id: 'share', label: t(labels.share), icon: <Share /> },
+    { id: 'edit', label: t(labels.edit), icon: <Edit />, seperator: true },
   ];
 
   const handleAction = (id: any) => {
@@ -33,16 +33,16 @@ export function WebsiteMenu({ websiteId }: { websiteId: string }) {
     <MenuTrigger>
       <Button variant="quiet">
         <Icon>
-          <More />
+          <MoreHorizontal />
         </Icon>
       </Button>
-      <Popover placement="bottom">
-        <Menu onAction={handleAction}>
+      <Popover side="bottom">
+        <Menu>
           {menuItems.map(({ id, label, icon, seperator }, index) => {
             return (
               <Fragment key={index}>
                 {seperator && <MenuSeparator />}
-                <MenuItem id={id}>
+                <MenuItem id={id} onAction={handleAction}>
                   <Icon>{icon}</Icon>
                   <Text>{label}</Text>
                 </MenuItem>

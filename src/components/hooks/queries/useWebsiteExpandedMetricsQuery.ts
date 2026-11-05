@@ -1,8 +1,8 @@
 import { keepPreviousData } from '@tanstack/react-query';
+import type { ReactQueryOptions } from '@/lib/types';
 import { useApi } from '../useApi';
-import { useFilterParameters } from '../useFilterParameters';
 import { useDateParameters } from '../useDateParameters';
-import { ReactQueryOptions } from '@/lib/types';
+import { useFilterParameters } from '../useFilterParameters';
 
 export type WebsiteExpandedMetricsData = {
   name: string;
@@ -19,7 +19,7 @@ export function useWebsiteExpandedMetricsQuery(
   options?: ReactQueryOptions<WebsiteExpandedMetricsData>,
 ) {
   const { get, useQuery } = useApi();
-  const { startAt, endAt, unit, timezone } = useDateParameters();
+  const { startAt, endAt } = useDateParameters();
   const filters = useFilterParameters();
 
   return useQuery<WebsiteExpandedMetricsData>({
@@ -29,8 +29,6 @@ export function useWebsiteExpandedMetricsQuery(
         websiteId,
         startAt,
         endAt,
-        unit,
-        timezone,
         ...filters,
         ...params,
       },
@@ -39,8 +37,6 @@ export function useWebsiteExpandedMetricsQuery(
       get(`/websites/${websiteId}/metrics/expanded`, {
         startAt,
         endAt,
-        unit,
-        timezone,
         ...filters,
         ...params,
       }),

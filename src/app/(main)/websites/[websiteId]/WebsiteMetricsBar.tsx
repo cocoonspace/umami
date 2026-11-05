@@ -1,20 +1,24 @@
+import { LoadingPanel } from '@/components/common/LoadingPanel';
 import { useDateRange, useMessages } from '@/components/hooks';
+import { useWebsiteStatsQuery } from '@/components/hooks/queries/useWebsiteStatsQuery';
 import { MetricCard } from '@/components/metrics/MetricCard';
 import { MetricsBar } from '@/components/metrics/MetricsBar';
-import { formatShortTime, formatLongNumber } from '@/lib/format';
-import { useWebsiteStatsQuery } from '@/components/hooks/queries/useWebsiteStatsQuery';
-import { LoadingPanel } from '@/components/common/LoadingPanel';
+import { formatLongNumber, formatShortTime } from '@/lib/format';
 
 export function WebsiteMetricsBar({
   websiteId,
+  compareMode,
 }: {
   websiteId: string;
   showChange?: boolean;
   compareMode?: boolean;
 }) {
-  const { isAllTime } = useDateRange();
-  const { formatMessage, labels, getErrorMessage } = useMessages();
-  const { data, isLoading, isFetching, error } = useWebsiteStatsQuery(websiteId);
+  const { isAllTime, dateCompare } = useDateRange();
+  const { t, labels, getErrorMessage } = useMessages();
+  const { data, isLoading, isFetching, error } = useWebsiteStatsQuery({
+    websiteId,
+    compare: compareMode ? dateCompare?.compare : undefined,
+  });
 
   const { pageviews, visitors, visits, bounces, totaltime, comparison } = data || {};
 
@@ -22,34 +26,34 @@ export function WebsiteMetricsBar({
     ? [
         {
           value: visitors,
-          label: formatMessage(labels.visitors),
+          label: t(labels.visitors),
           change: visitors - comparison.visitors,
           formatValue: formatLongNumber,
         },
         {
           value: visits,
-          label: formatMessage(labels.visits),
+          label: t(labels.visits),
           change: visits - comparison.visits,
           formatValue: formatLongNumber,
         },
         {
           value: pageviews,
-          label: formatMessage(labels.views),
+          label: t(labels.views),
           change: pageviews - comparison.pageviews,
           formatValue: formatLongNumber,
         },
         {
-          label: formatMessage(labels.bounceRate),
+          label: t(labels.bounceRate),
           value: (Math.min(visits, bounces) / visits) * 100,
           prev: (Math.min(comparison.visits, comparison.bounces) / comparison.visits) * 100,
           change:
             (Math.min(visits, bounces) / visits) * 100 -
             (Math.min(comparison.visits, comparison.bounces) / comparison.visits) * 100,
-          formatValue: n => Math.round(+n) + '%',
+          formatValue: n => `${Math.round(+n)}%`,
           reverseColors: true,
         },
         {
-          label: formatMessage(labels.visitDuration),
+          label: t(labels.visitDuration),
           value: totaltime / visits,
           prev: comparison.totaltime / comparison.visits,
           change: totaltime / visits - comparison.totaltime / comparison.visits,

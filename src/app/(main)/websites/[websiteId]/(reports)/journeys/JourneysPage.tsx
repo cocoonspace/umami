@@ -1,33 +1,52 @@
 'use client';
+import { Column, Grid, ListItem, Row, Select } from '@umami/react-zen';
 import { useState } from 'react';
-import { ListItem, Select, Column, Grid, SearchField } from '@umami/react-zen';
-import { useDateRange, useMessages } from '@/components/hooks';
-import { Panel } from '@/components/common/Panel';
-import { Journey } from './Journey';
 import { WebsiteControls } from '@/app/(main)/websites/[websiteId]/WebsiteControls';
+import { Panel } from '@/components/common/Panel';
+import { useDateRange, useMessages } from '@/components/hooks';
+import { FilterButtons } from '@/components/input/FilterButtons';
+import { WebsiteValueComboBox } from '@/components/input/WebsiteValueComboBox';
+import { Journey } from './Journey';
 
 const JOURNEY_STEPS = [2, 3, 4, 5, 6, 7];
 const DEFAULT_STEP = 3;
 
 export function JourneysPage({ websiteId }: { websiteId: string }) {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const {
     dateRange: { startDate, endDate },
   } = useDateRange();
+  const [view, setView] = useState('all');
   const [steps, setSteps] = useState(DEFAULT_STEP);
   const [startStep, setStartStep] = useState('');
   const [endStep, setEndStep] = useState('');
+  const stepType = view === 'events' ? 'event' : 'path';
+  const additionalStepType = view === 'all' ? 'event' : undefined;
+
+  const buttons = [
+    {
+      id: 'all',
+      label: t(labels.all),
+    },
+    {
+      id: 'views',
+      label: t(labels.views),
+    },
+    {
+      id: 'events',
+      label: t(labels.events),
+    },
+  ];
 
   return (
     <Column gap>
       <WebsiteControls websiteId={websiteId} />
       <Grid columns="repeat(3, 1fr)" gap>
         <Select
-          items={JOURNEY_STEPS}
-          label={formatMessage(labels.steps)}
+          label={t(labels.steps)}
           value={steps}
           defaultValue={steps}
-          onChange={setSteps}
+          onChange={value => setSteps(Number(value))}
         >
           {JOURNEY_STEPS.map(step => (
             <ListItem key={step} id={step}>
@@ -36,22 +55,33 @@ export function JourneysPage({ websiteId }: { websiteId: string }) {
           ))}
         </Select>
         <Column>
-          <SearchField
-            label={formatMessage(labels.startStep)}
+          <WebsiteValueComboBox
+            label={t(labels.startStep)}
+            websiteId={websiteId}
+            type={stepType}
+            additionalType={additionalStepType}
+            startDate={startDate}
+            endDate={endDate}
             value={startStep}
-            onSearch={setStartStep}
-            delay={1000}
+            onChange={setStartStep}
           />
         </Column>
         <Column>
-          <SearchField
-            label={formatMessage(labels.endStep)}
+          <WebsiteValueComboBox
+            label={t(labels.endStep)}
+            websiteId={websiteId}
+            type={stepType}
+            additionalType={additionalStepType}
+            startDate={startDate}
+            endDate={endDate}
             value={endStep}
-            onSearch={setEndStep}
-            delay={1000}
+            onChange={setEndStep}
           />
         </Column>
       </Grid>
+      <Row justifyContent="flex-end">
+        <FilterButtons items={buttons} value={view} onChange={setView} />
+      </Row>
       <Panel height="900px" allowFullscreen>
         <Journey
           websiteId={websiteId}
@@ -60,6 +90,7 @@ export function JourneysPage({ websiteId }: { websiteId: string }) {
           steps={steps}
           startStep={startStep}
           endStep={endStep}
+          view={view}
         />
       </Panel>
     </Column>

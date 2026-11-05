@@ -1,7 +1,7 @@
-import { canViewWebsite } from '@/permissions';
-import { getWebsiteDateRange } from '@/queries/sql';
-import { json, unauthorized } from '@/lib/response';
 import { parseRequest } from '@/lib/request';
+import { json, unauthorized } from '@/lib/response';
+import { canViewSharedWebsite } from '@/permissions';
+import { getWebsiteDateRange } from '@/queries/sql';
 
 export async function GET(
   request: Request,
@@ -15,7 +15,7 @@ export async function GET(
 
   const { websiteId } = await params;
 
-  if (!(await canViewWebsite(auth, websiteId))) {
+  if (!(await canViewSharedWebsite(auth, websiteId))) {
     return unauthorized();
   }
 

@@ -1,21 +1,21 @@
 'use client';
+import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { redirect } from 'next/navigation';
-import { getItem, removeItem } from '@/lib/storage';
 import { LAST_TEAM_CONFIG } from '@/lib/constants';
+import { getItem } from '@/lib/storage';
 
 export default function RootPage() {
+  const router = useRouter();
+
   useEffect(() => {
     const lastTeam = getItem(LAST_TEAM_CONFIG);
 
     if (lastTeam) {
-      redirect(`/teams/${lastTeam}/websites`);
+      router.replace(`/teams/${lastTeam}/websites`);
     } else {
-      removeItem(LAST_TEAM_CONFIG);
-
-      redirect(`/websites`);
+      router.replace(`/websites`);
     }
-  }, []);
+  }, [router]);
 
   return null;
 }

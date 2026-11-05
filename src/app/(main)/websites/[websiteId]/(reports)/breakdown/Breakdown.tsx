@@ -1,6 +1,6 @@
-import { Text, DataTable, DataColumn, Column } from '@umami/react-zen';
-import { useMessages, useResultQuery, useFormat, useFields } from '@/components/hooks';
+import { Column, DataColumn, DataTable, Text } from '@umami/react-zen';
 import { LoadingPanel } from '@/components/common/LoadingPanel';
+import { useBreakdownQuery, useFields, useFormat, useMessages } from '@/components/hooks';
 import { formatShortTime } from '@/lib/format';
 
 export interface BreakdownProps {
@@ -11,11 +11,10 @@ export interface BreakdownProps {
 }
 
 export function Breakdown({ websiteId, selectedFields = [], startDate, endDate }: BreakdownProps) {
-  const { formatMessage, labels } = useMessages();
+  const { t, labels } = useMessages();
   const { formatValue } = useFormat();
   const { fields } = useFields();
-  const { data, error, isLoading } = useResultQuery<any>(
-    'breakdown',
+  const { data, error, isLoading } = useBreakdownQuery(
     {
       websiteId,
       startDate,
@@ -48,39 +47,24 @@ export function Breakdown({ websiteId, selectedFields = [], startDate, endDate }
               </DataColumn>
             );
           })}
-          <DataColumn
-            id="visitors"
-            label={formatMessage(labels.visitors)}
-            align="end"
-            width="120px"
-          >
-            {row => row?.['visitors']?.toLocaleString()}
+          <DataColumn id="visitors" label={t(labels.visitors)} align="end" width="120px">
+            {row => row?.visitors?.toLocaleString()}
           </DataColumn>
-          <DataColumn id="visits" label={formatMessage(labels.visits)} align="end" width="120px">
-            {row => row?.['visits']?.toLocaleString()}
+          <DataColumn id="visits" label={t(labels.visits)} align="end" width="120px">
+            {row => row?.visits?.toLocaleString()}
           </DataColumn>
-          <DataColumn id="views" label={formatMessage(labels.views)} align="end" width="120px">
-            {row => row?.['views']?.toLocaleString()}
+          <DataColumn id="views" label={t(labels.views)} align="end" width="120px">
+            {row => row?.views?.toLocaleString()}
           </DataColumn>
-          <DataColumn
-            id="bounceRate"
-            label={formatMessage(labels.bounceRate)}
-            align="end"
-            width="120px"
-          >
+          <DataColumn id="bounceRate" label={t(labels.bounceRate)} align="end" width="120px">
             {row => {
-              const n = (Math.min(row?.['visits'], row?.['bounces']) / row?.['visits']) * 100;
-              return Math.round(+n) + '%';
+              const n = (Math.min(row?.visits, row?.bounces) / row?.visits) * 100;
+              return `${Math.round(+n)}%`;
             }}
           </DataColumn>
-          <DataColumn
-            id="visitDuration"
-            label={formatMessage(labels.visitDuration)}
-            align="end"
-            width="120px"
-          >
+          <DataColumn id="visitDuration" label={t(labels.visitDuration)} align="end" width="120px">
             {row => {
-              const n = row?.['totaltime'] / row?.['visits'];
+              const n = row?.totaltime / row?.visits;
               return `${+n < 0 ? '-' : ''}${formatShortTime(Math.abs(~~n), ['m', 's'], ' ')}`;
             }}
           </DataColumn>
