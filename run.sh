@@ -5,4 +5,4 @@ if [ -z "$DATABASE_URL" ]; then
   export DATABASE_URL
 fi
 
-pnpm start-docker
+exec sh scripts/start-docker.sh
